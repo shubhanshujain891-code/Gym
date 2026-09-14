@@ -1,38 +1,38 @@
 import React, { useState } from 'react';
-import { YgosLogo } from '../../components/brand/YgosLogo';
 import { useStore } from '../../hooks/useStore';
+import { YgosLogo } from '../../components/brand/YgosLogo';
 import { formatCurrency } from '../../utils/formatters';
 import {
   Users,
   CreditCard,
-  CalendarCheck,
-  Dumbbell,
-  ShieldCheck,
   QrCode,
-  TrendingUp,
-  ArrowRight,
-  CheckCircle2,
-  Sparkles,
-  Zap,
-  BarChart3,
-  UserCheck,
+  Dumbbell,
   Utensils,
+  BarChart3,
+  TrendingUp,
   Clock,
-  Layers,
-  ChevronRight,
-  Server,
-  Lock,
-  Smartphone,
-  Flame,
   Check,
-  Sliders,
-  Play,
-  FileText,
-  HelpCircle,
-  Mail,
+  ArrowRight,
+  ShieldCheck,
+  ChevronRight,
+  Sparkles,
   Phone,
-  Building,
-  Star,
+  Calendar,
+  Layers,
+  Award,
+  Zap,
+  CheckCircle2,
+  Lock,
+  Building2,
+  Smartphone,
+  UserCheck,
+  Menu,
+  X,
+  Compass,
+  FileText,
+  DollarSign,
+  HeartHandshake,
+  Activity,
 } from 'lucide-react';
 
 interface LandingPageProps {
@@ -47,284 +47,511 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterApp, onOpenAddM
   const payments = store.getPayments();
   const attendance = store.getAttendance();
 
-  // Active showcase tab
-  const [activeShowcaseTab, setActiveShowcaseTab] = useState<
-    'dashboard' | 'members' | 'attendance' | 'payments' | 'trainers' | 'portal'
-  >('dashboard');
-
-  // Interactive Book a Demo modal state
-  const [isDemoModalOpen, setIsDemoModalOpen] = useState(false);
-  const [demoFormSubmitted, setDemoFormSubmitted] = useState(false);
-  const [demoFormData, setDemoFormData] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    gymName: '',
-    memberCount: '100-300',
-  });
-
-  // Calculate live stats from store for realism
+  // Metrics
   const activeCount = members.filter((m) => m.status === 'active').length;
   const expiringCount = members.filter((m) => m.status === 'expiring_soon').length;
   const totalRev = payments.reduce((acc, p) => acc + p.amount, 0);
 
+  // Navigation and showcase state
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [activeShowcaseTab, setActiveShowcaseTab] = useState<
+    'dashboard' | 'members' | 'attendance' | 'payments' | 'trainers' | 'portal'
+  >('dashboard');
+
+  // Modals state
+  const [isDemoModalOpen, setIsDemoModalOpen] = useState(false);
+  const [demoFormSubmitted, setDemoFormSubmitted] = useState(false);
+  const [demoFormData, setDemoFormData] = useState({
+    name: '',
+    gymName: '',
+    email: '',
+    phone: '',
+    memberCount: '100-300',
+    primaryGoal: 'Automate attendance & stop payment leakage',
+  });
+
+  const [isSignInModalOpen, setIsSignInModalOpen] = useState(false);
+  const [signInEmail, setSignInEmail] = useState('owner@ygos.com');
+  const [signInPassword, setSignInPassword] = useState('••••••••');
+
+  const [isGetStartedModalOpen, setIsGetStartedModalOpen] = useState(false);
+  const [getStartedData, setGetStartedData] = useState({
+    gymName: gym.name || 'PowerFit Arena',
+    ownerName: 'Vikram Sharma',
+    phone: '+91 98765 43210',
+    city: 'Mumbai, MH',
+    currencySymbol: gym.settings?.currencySymbol || '₹',
+    planTier: 'Growth OS',
+  });
+  const [getStartedSuccess, setGetStartedSuccess] = useState(false);
+
+  // Handlers
   const handleDemoSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    try {
+      const existing = JSON.parse(localStorage.getItem('ygos_demo_leads') || '[]');
+      existing.unshift({ ...demoFormData, submittedAt: new Date().toISOString() });
+      localStorage.setItem('ygos_demo_leads', JSON.stringify(existing));
+    } catch {
+      // ignore
+    }
     setDemoFormSubmitted(true);
-    setTimeout(() => {
-      setIsDemoModalOpen(false);
-      setDemoFormSubmitted(false);
+  };
+
+  const handleRoleSignIn = (role: 'gym_owner' | 'staff' | 'trainer' | 'member') => {
+    const allUsers = store.getAllUsers();
+    const targetUser = allUsers.find((u) => u.role === role);
+    if (targetUser) {
+      store.setCurrentUser(targetUser.id);
+    }
+    setIsSignInModalOpen(false);
+    if (role === 'member') {
+      onEnterApp('portal');
+    } else if (role === 'trainer') {
+      onEnterApp('trainers');
+    } else if (role === 'staff') {
+      onEnterApp('attendance');
+    } else {
       onEnterApp('dashboard');
-    }, 1500);
+    }
+  };
+
+  const handleCreateGym = (e: React.FormEvent) => {
+    e.preventDefault();
+    store.updateGym(gym.id, {
+      name: getStartedData.gymName,
+      address: `${getStartedData.city}, India`,
+      settings: {
+        ...gym.settings,
+        currencySymbol: getStartedData.currencySymbol,
+      },
+    });
+    setGetStartedSuccess(true);
+    setTimeout(() => {
+      setIsGetStartedModalOpen(false);
+      setGetStartedSuccess(false);
+      onEnterApp('dashboard');
+    }, 900);
   };
 
   return (
-    <div className="min-h-screen bg-white text-slate-900 font-sans antialiased selection:bg-lime-400 selection:text-slate-950 flex flex-col">
+    <div className="min-h-screen bg-white text-slate-900 selection:bg-lime-300 selection:text-slate-950 font-sans antialiased">
       {/* =========================================================================
-          1. NAVBAR
+          1. NAVIGATION BAR
       ========================================================================= */}
-      <header className="sticky top-0 z-50 w-full bg-white/90 backdrop-blur-md border-b border-slate-200/80 transition-all">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-18 flex items-center justify-between">
-          {/* Logo Lockup */}
-          <button
-            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-            className="text-left focus:outline-hidden"
-          >
-            <YgosLogo size="md" />
-          </button>
+      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/80">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="h-18 flex items-center justify-between">
+            {/* Brand Logo Lockup: YGOS / Your Gym OS */}
+            <div className="flex items-center gap-8">
+              <a href="#" className="flex items-center focus:outline-hidden">
+                <YgosLogo size="md" showParentBrand={false} />
+              </a>
 
-          {/* Nav Links (Desktop) */}
-          <nav className="hidden md:flex items-center gap-7 text-xs font-semibold text-slate-600">
-            <a href="#product" className="hover:text-slate-950 transition">
-              Product
-            </a>
-            <a href="#features" className="hover:text-slate-950 transition">
-              Features
-            </a>
-            <a href="#workflow" className="hover:text-slate-950 transition">
-              Workflow
-            </a>
-            <a href="#member-experience" className="hover:text-slate-950 transition">
-              Member Pass
-            </a>
-            <a href="#owner-insights" className="hover:text-slate-950 transition">
-              Owner OS
-            </a>
-            <a href="#pricing" className="hover:text-slate-950 transition">
-              Pricing
-            </a>
-          </nav>
+              {/* Desktop Nav Links */}
+              <nav className="hidden md:flex items-center gap-7 text-xs font-semibold text-slate-600">
+                <a href="#product" className="hover:text-slate-950 transition">
+                  Product
+                </a>
+                <a href="#features" className="hover:text-slate-950 transition">
+                  Features
+                </a>
+                <a href="#workflow" className="hover:text-slate-950 transition">
+                  Workflow
+                </a>
+                <a href="#solutions" className="hover:text-slate-950 transition">
+                  Solutions
+                </a>
+                <a href="#pricing" className="hover:text-slate-950 transition">
+                  Pricing
+                </a>
+              </nav>
+            </div>
 
-          {/* Action CTAs */}
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => onEnterApp('dashboard')}
-              className="px-3.5 py-2 text-xs font-semibold text-slate-700 hover:text-slate-950 transition rounded-lg hover:bg-slate-100"
-            >
-              Sign In
-            </button>
+            {/* Desktop Action Buttons */}
+            <div className="hidden sm:flex items-center gap-3">
+              <button
+                onClick={() => setIsSignInModalOpen(true)}
+                className="px-4 py-2 text-xs font-bold text-slate-700 hover:text-slate-950 hover:bg-slate-100 rounded-lg transition"
+              >
+                Sign In
+              </button>
 
-            <button
-              onClick={() => onEnterApp('dashboard')}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-950 hover:bg-slate-900 text-white text-xs font-bold transition shadow-xs group border border-slate-800"
-            >
-              <span>Get Started</span>
-              <span className="w-1.5 h-1.5 rounded-full bg-lime-400 group-hover:scale-125 transition" />
-            </button>
+              <button
+                onClick={() => setIsGetStartedModalOpen(true)}
+                className="inline-flex items-center gap-2 px-4.5 py-2.5 rounded-lg bg-slate-950 text-white hover:bg-slate-800 text-xs font-bold shadow-xs hover:shadow-md transition"
+              >
+                <span>Get Started</span>
+                <ArrowRight className="w-3.5 h-3.5 text-lime-400" />
+              </button>
+            </div>
+
+            {/* Mobile Hamburger */}
+            <div className="md:hidden flex items-center gap-2">
+              <button
+                onClick={() => setIsGetStartedModalOpen(true)}
+                className="px-3 py-1.5 rounded-md bg-slate-950 text-white text-xs font-bold"
+              >
+                Get Started
+              </button>
+              <button
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="p-2 text-slate-600 hover:text-slate-900"
+                aria-label="Toggle Menu"
+              >
+                {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+              </button>
+            </div>
           </div>
         </div>
+
+        {/* Mobile Dropdown */}
+        {mobileMenuOpen && (
+          <div className="md:hidden border-t border-slate-200 bg-white px-4 pt-3 pb-5 space-y-3 shadow-lg animate-in slide-in-from-top-2">
+            <a
+              href="#product"
+              onClick={() => setMobileMenuOpen(false)}
+              className="block py-2 text-sm font-semibold text-slate-700"
+            >
+              Product
+            </a>
+            <a
+              href="#features"
+              onClick={() => setMobileMenuOpen(false)}
+              className="block py-2 text-sm font-semibold text-slate-700"
+            >
+              Features
+            </a>
+            <a
+              href="#workflow"
+              onClick={() => setMobileMenuOpen(false)}
+              className="block py-2 text-sm font-semibold text-slate-700"
+            >
+              Workflow
+            </a>
+            <a
+              href="#solutions"
+              onClick={() => setMobileMenuOpen(false)}
+              className="block py-2 text-sm font-semibold text-slate-700"
+            >
+              Solutions
+            </a>
+            <a
+              href="#pricing"
+              onClick={() => setMobileMenuOpen(false)}
+              className="block py-2 text-sm font-semibold text-slate-700"
+            >
+              Pricing
+            </a>
+            <div className="pt-3 border-t border-slate-100 flex flex-col gap-2">
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  setIsSignInModalOpen(true);
+                }}
+                className="w-full py-2 text-center text-xs font-bold text-slate-700 bg-slate-100 rounded-lg"
+              >
+                Sign In
+              </button>
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  setIsDemoModalOpen(true);
+                }}
+                className="w-full py-2 text-center text-xs font-bold text-slate-900 border border-slate-300 rounded-lg"
+              >
+                Book a Live Demo
+              </button>
+            </div>
+          </div>
+        )}
       </header>
 
       {/* =========================================================================
           2. HERO SECTION
       ========================================================================= */}
-      <section className="relative pt-12 pb-20 sm:pt-20 sm:pb-28 overflow-hidden bg-gradient-to-b from-slate-50/80 via-white to-white border-b border-slate-200/60">
-        {/* Subtle Ambient Lime Glow */}
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[350px] bg-lime-200/30 blur-[130px] rounded-full pointer-events-none -z-10" />
-
+      <section className="pt-16 pb-20 md:pt-24 md:pb-28 bg-gradient-to-b from-slate-50/60 via-white to-white border-b border-slate-200/70">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          {/* Eyebrow Brand Badge */}
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100 border border-slate-200 text-slate-800 text-[11px] font-semibold mb-6 shadow-xs">
-            <span className="flex h-2 w-2 rounded-full bg-lime-500 animate-pulse" />
-            <span className="text-slate-950 font-bold">Your Gym OS</span>
-            <span className="text-slate-300">|</span>
-            <span className="text-slate-600 font-medium">Run Better. Grow Faster.</span>
-            <span className="text-[9px] uppercase tracking-wider text-slate-500 bg-white px-1.5 py-0.5 rounded-md border border-slate-200/80">
-              by YBGP
-            </span>
+          {/* Eyebrow Badge */}
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-100 border border-slate-200/80 text-slate-800 text-xs font-semibold mb-7 shadow-2xs">
+            <span className="w-2 h-2 rounded-full bg-lime-500 animate-pulse" />
+            <span className="font-extrabold text-slate-950">YGOS</span>
+            <span className="text-slate-300 font-normal">|</span>
+            <span className="text-slate-600 font-medium">Your Gym OS</span>
           </div>
 
-          {/* Primary Headline */}
-          <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black text-slate-950 tracking-tight leading-[1.08] max-w-4xl mx-auto">
-            Your Gym. <br className="hidden sm:inline" />
-            <span className="relative inline-block">
-              One Operating System.
-              <span className="absolute -bottom-1 left-0 right-0 h-2 bg-lime-300/60 -z-10 rounded-sm" />
-            </span>
+          {/* Primary Bold Headline */}
+          <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black text-slate-950 tracking-tight leading-[1.05] max-w-4xl mx-auto">
+            Run Your Gym. <br />
+            <span className="text-slate-900">Grow Your Business.</span>
           </h1>
 
-          {/* Supporting Copy */}
-          <p className="mt-6 text-base sm:text-lg lg:text-xl text-slate-600 max-w-2xl mx-auto leading-relaxed font-normal">
-            Manage members, attendance, payments, trainers and everyday gym operations from one powerful platform.
+          {/* Brand Identity & Core Value Proposition */}
+          <p className="mt-6 text-base sm:text-lg md:text-xl text-slate-600 max-w-2xl mx-auto font-normal leading-relaxed">
+            <strong className="font-bold text-slate-900">YGOS — Your Gym OS</strong>. Manage members, attendance, payments, trainers and everyday gym operations from one powerful platform.
           </p>
 
-          {/* Action CTAs */}
-          <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3.5">
+          {/* Primary Action Buttons */}
+          <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3 max-w-md mx-auto">
             <button
-              onClick={() => onEnterApp('dashboard')}
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-6 py-3.5 rounded-xl bg-slate-950 hover:bg-slate-900 text-white text-sm font-bold transition shadow-md shadow-slate-900/10 group border border-slate-800"
+              onClick={() => setIsGetStartedModalOpen(true)}
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-8 py-3.5 rounded-xl bg-slate-950 hover:bg-slate-900 text-white font-bold text-sm shadow-md hover:shadow-lg transition-all"
             >
               <span>Get Started</span>
-              <ArrowRight className="w-4 h-4 text-lime-400 group-hover:translate-x-1 transition" />
+              <ArrowRight className="w-4 h-4 text-lime-400" />
             </button>
 
             <button
               onClick={() => setIsDemoModalOpen(true)}
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-white hover:bg-slate-50 text-slate-800 text-sm font-semibold border border-slate-200 transition shadow-xs"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-white hover:bg-slate-50 text-slate-800 font-bold text-sm border border-slate-300 shadow-xs transition"
             >
-              <Play className="w-3.5 h-3.5 fill-slate-700 text-slate-700" />
+              <Calendar className="w-4 h-4 text-slate-500" />
               <span>Book a Demo</span>
             </button>
           </div>
 
-          <div className="mt-4 text-[11px] text-slate-500 font-medium">
-            Includes multi-role access • Real-time QR attendance • Hostinger MySQL native
+          {/* Brand Tagline */}
+          <div className="mt-5 text-xs font-bold uppercase tracking-wider text-slate-500">
+            Run Better. Grow Faster.
           </div>
 
-          {/* Hero Visual: Polished Real YGOS Dashboard Interface Preview */}
-          <div className="mt-14 relative mx-auto max-w-5xl rounded-2xl bg-white p-2.5 sm:p-4 border border-slate-200/90 shadow-2xl shadow-slate-200/60">
-            {/* Window chrome header */}
-            <div className="flex items-center justify-between pb-3 px-2 border-b border-slate-100 text-xs text-slate-400">
-              <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full bg-slate-200" />
-                <span className="w-3 h-3 rounded-full bg-slate-200" />
-                <span className="w-3 h-3 rounded-full bg-slate-200" />
-                <span className="ml-2 font-mono text-[11px] text-slate-500 bg-slate-100 px-2.5 py-0.5 rounded-md">
-                  app.ygos.io/{gym.slug || 'powerfit'}
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-lime-50 text-lime-800 border border-lime-200/70 text-[10px] font-bold">
-                  <span className="w-1.5 h-1.5 rounded-full bg-lime-500 animate-pulse" />
-                  YGOS Engine Online
-                </span>
-                <span className="hidden sm:inline text-slate-400 text-[11px]">
-                  Database: Hostinger MySQL
-                </span>
-              </div>
-            </div>
+          {/* Value Pills Strip (Clean, Authentic SaaS Trust Indicators) */}
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-2 sm:gap-3 text-xs text-slate-600 font-medium max-w-3xl mx-auto">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100/90 border border-slate-200 text-slate-800">
+              <Check className="w-3.5 h-3.5 text-lime-600 font-bold" />
+              <span>Multi-gym ready</span>
+            </span>
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100/90 border border-slate-200 text-slate-800">
+              <Check className="w-3.5 h-3.5 text-lime-600 font-bold" />
+              <span>QR & smart attendance</span>
+            </span>
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100/90 border border-slate-200 text-slate-800">
+              <Check className="w-3.5 h-3.5 text-lime-600 font-bold" />
+              <span>Payments & memberships</span>
+            </span>
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100/90 border border-slate-200 text-slate-800">
+              <Check className="w-3.5 h-3.5 text-lime-600 font-bold" />
+              <span>Built for gym owners</span>
+            </span>
+          </div>
 
-            {/* Embedded Live Snapshot of Gym OS */}
-            <div className="pt-3 bg-slate-50/50 rounded-xl p-3 sm:p-5 text-left">
-              {/* Internal Mini Header */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 mb-4 border-b border-slate-200">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-slate-950 text-white flex items-center justify-center font-black text-sm">
-                    YG
+          {/* =========================================================================
+              3. STAR HERO VISUAL: AUTHENTIC SAAS PRODUCT DASHBOARD SCREENSHOT
+          ========================================================================= */}
+          <div className="mt-14 max-w-6xl mx-auto text-left">
+            <div className="rounded-2xl border border-slate-300/80 bg-slate-900/5 p-2 sm:p-3 shadow-2xl">
+              <div className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-xs">
+                {/* Browser/OS Window Chrome */}
+                <div className="h-10 bg-slate-100/90 border-b border-slate-200 px-4 flex items-center justify-between text-xs text-slate-500">
+                  <div className="flex items-center gap-2">
+                    <div className="flex gap-1.5">
+                      <div className="w-3 h-3 rounded-full bg-slate-300" />
+                      <div className="w-3 h-3 rounded-full bg-slate-300" />
+                      <div className="w-3 h-3 rounded-full bg-slate-300" />
+                    </div>
+                    <span className="ml-3 font-mono text-[11px] text-slate-400 hidden sm:inline">
+                      ygos.com/dashboard
+                    </span>
                   </div>
-                  <div>
-                    <h2 className="text-sm sm:text-base font-extrabold text-slate-900 leading-tight">
-                      {gym.name}
-                    </h2>
-                    <p className="text-[11px] text-slate-500">
-                      Live Operations • Branch 01 (Sector 29)
-                    </p>
+
+                  <div className="flex items-center gap-2.5">
+                    <span className="w-2 h-2 rounded-full bg-lime-500 animate-pulse" />
+                    <span className="font-semibold text-slate-700 text-[11px]">{gym.name}</span>
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-slate-200 text-slate-700">
+                      Live
+                    </span>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => onEnterApp('attendance')}
-                    className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 transition shadow-xs flex items-center gap-1.5"
-                  >
-                    <QrCode className="w-3.5 h-3.5 text-slate-600" />
-                    <span>Live Scanner</span>
-                  </button>
-                  <button
-                    onClick={() => onEnterApp('dashboard')}
-                    className="px-3 py-1.5 bg-slate-950 hover:bg-slate-900 text-white rounded-lg text-xs font-bold transition shadow-xs flex items-center gap-1.5"
-                  >
-                    <Sliders className="w-3.5 h-3.5 text-lime-400" />
-                    <span>Launch OS</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Real-time KPI Cards Grid */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
-                <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-xs">
-                  <div className="flex items-center justify-between text-slate-500 mb-1">
-                    <span className="text-[11px] font-bold uppercase tracking-wider">Active Members</span>
-                    <Users className="w-4 h-4 text-lime-600" />
-                  </div>
-                  <div className="text-xl sm:text-2xl font-black text-slate-900">{activeCount}</div>
-                  <div className="text-[10px] text-lime-700 font-semibold mt-0.5 flex items-center gap-1">
-                    <TrendingUp className="w-3 h-3" /> +14% this month
-                  </div>
-                </div>
-
-                <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-xs">
-                  <div className="flex items-center justify-between text-slate-500 mb-1">
-                    <span className="text-[11px] font-bold uppercase tracking-wider">Today's Check-ins</span>
-                    <CalendarCheck className="w-4 h-4 text-blue-600" />
-                  </div>
-                  <div className="text-xl sm:text-2xl font-black text-slate-900">{attendance.length}</div>
-                  <div className="text-[10px] text-slate-500 font-medium mt-0.5">
-                    Live via Kiosk & QR
-                  </div>
-                </div>
-
-                <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-xs">
-                  <div className="flex items-center justify-between text-slate-500 mb-1">
-                    <span className="text-[11px] font-bold uppercase tracking-wider">Total Revenue</span>
-                    <CreditCard className="w-4 h-4 text-emerald-600" />
-                  </div>
-                  <div className="text-xl sm:text-2xl font-black text-slate-900">
-                    {formatCurrency(totalRev, gym.settings.currencySymbol)}
-                  </div>
-                  <div className="text-[10px] text-slate-500 font-medium mt-0.5">
-                    UPI, Cards, Cash
-                  </div>
-                </div>
-
-                <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-xs">
-                  <div className="flex items-center justify-between text-slate-500 mb-1">
-                    <span className="text-[11px] font-bold uppercase tracking-wider">Expiring Soon</span>
-                    <Clock className="w-4 h-4 text-amber-600" />
-                  </div>
-                  <div className="text-xl sm:text-2xl font-black text-slate-900">{expiringCount}</div>
-                  <div className="text-[10px] text-amber-700 font-medium mt-0.5">
-                    Auto-WhatsApp renewal
-                  </div>
-                </div>
-              </div>
-
-              {/* Sample Members Activity preview inside hero */}
-              <div className="bg-white rounded-xl border border-slate-200 p-3 sm:p-4">
-                <div className="flex items-center justify-between mb-2.5">
-                  <span className="text-xs font-bold text-slate-800">Recent Member Check-ins</span>
-                  <span className="text-[11px] text-slate-500 font-medium">Real-time sync</span>
-                </div>
-                <div className="divide-y divide-slate-100">
-                  {members.slice(0, 3).map((m) => (
-                    <div key={m.id} className="py-2 flex items-center justify-between text-xs">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-7 h-7 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold text-[11px]">
-                          {m.firstName.charAt(0)}
-                        </div>
-                        <div>
-                          <p className="font-bold text-slate-900">{m.firstName} {m.lastName}</p>
-                          <p className="text-[10px] text-slate-500">{m.memberCode} • {m.currentPlanName || 'Quarterly Plan'}</p>
-                        </div>
+                {/* Dashboard Interface Simulation */}
+                <div className="grid grid-cols-12 divide-y sm:divide-y-0 sm:divide-x divide-slate-200 bg-slate-50/40">
+                  {/* Left Mini Sidebar */}
+                  <div className="col-span-12 sm:col-span-3 lg:col-span-2 bg-white p-3 sm:p-4 space-y-4">
+                    <div className="flex items-center gap-2 pb-3 border-b border-slate-100">
+                      <div className="w-6 h-6 rounded-md bg-slate-950 text-lime-400 flex items-center justify-center font-black text-xs">
+                        Y
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className="px-2 py-0.5 rounded-md bg-lime-50 text-lime-800 text-[10px] font-bold border border-lime-200">
-                          {m.status.replace('_', ' ')}
-                        </span>
-                        <span className="text-slate-400 font-mono text-[11px]">08:30 AM</span>
+                      <span className="font-black text-xs text-slate-900 tracking-tight">YGOS</span>
+                    </div>
+
+                    <div className="space-y-1 text-xs">
+                      <div className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg bg-slate-950 text-white font-bold">
+                        <BarChart3 className="w-3.5 h-3.5 text-lime-400" />
+                        <span>Dashboard</span>
+                      </div>
+                      <div
+                        onClick={() => onEnterApp('members')}
+                        className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100 font-medium cursor-pointer transition"
+                      >
+                        <Users className="w-3.5 h-3.5 text-slate-400" />
+                        <span>Members</span>
+                      </div>
+                      <div
+                        onClick={() => onEnterApp('attendance')}
+                        className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100 font-medium cursor-pointer transition"
+                      >
+                        <QrCode className="w-3.5 h-3.5 text-slate-400" />
+                        <span>Attendance</span>
+                      </div>
+                      <div
+                        onClick={() => onEnterApp('payments')}
+                        className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100 font-medium cursor-pointer transition"
+                      >
+                        <CreditCard className="w-3.5 h-3.5 text-slate-400" />
+                        <span>Payments</span>
+                      </div>
+                      <div
+                        onClick={() => onEnterApp('trainers')}
+                        className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100 font-medium cursor-pointer transition"
+                      >
+                        <UserCheck className="w-3.5 h-3.5 text-slate-400" />
+                        <span>Trainers</span>
+                      </div>
+                      <div
+                        onClick={() => onEnterApp('portal')}
+                        className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100 font-medium cursor-pointer transition"
+                      >
+                        <Smartphone className="w-3.5 h-3.5 text-slate-400" />
+                        <span>Member Pass</span>
                       </div>
                     </div>
-                  ))}
+                  </div>
+
+                  {/* Main Work Area */}
+                  <div className="col-span-12 sm:col-span-9 lg:col-span-10 p-4 sm:p-6 bg-white space-y-5">
+                    {/* Top Status Bar inside app */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+                      <div>
+                        <h2 className="text-base font-bold text-slate-950 flex items-center gap-2">
+                          <span>Good morning, Rahul</span>
+                          <span className="text-sm font-normal text-slate-400">👋</span>
+                        </h2>
+                        <span className="text-[11px] text-slate-500">
+                          Active Facility Control Center • Real-time synchronization
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => {
+                            if (onOpenAddMember) onOpenAddMember();
+                            else onEnterApp('members');
+                          }}
+                          className="px-3 py-1.5 rounded-lg bg-lime-400 hover:bg-lime-300 text-slate-950 font-bold text-xs inline-flex items-center gap-1.5 shadow-2xs transition"
+                        >
+                          <span>+ Register Member</span>
+                        </button>
+                        <button
+                          onClick={() => onEnterApp('dashboard')}
+                          className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold text-xs transition"
+                        >
+                          Open Live View
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* 4 Core Metric KPI Cards */}
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                      <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80">
+                        <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
+                          Active Members
+                        </span>
+                        <div className="text-2xl font-black text-slate-950 mt-1">{activeCount}</div>
+                        <span className="text-[10px] text-emerald-700 font-bold mt-1 inline-block">
+                          Enrolled & Verified
+                        </span>
+                      </div>
+
+                      <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80">
+                        <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
+                          Revenue Collected
+                        </span>
+                        <div className="text-2xl font-black text-slate-950 mt-1">
+                          {formatCurrency(totalRev, gym.settings.currencySymbol)}
+                        </div>
+                        <span className="text-[10px] text-slate-600 font-medium mt-1 inline-block">
+                          Reconciled this month
+                        </span>
+                      </div>
+
+                      <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80">
+                        <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
+                          Today's Check-ins
+                        </span>
+                        <div className="text-2xl font-black text-slate-950 mt-1">{attendance.length}</div>
+                        <span className="text-[10px] text-lime-700 font-bold mt-1 inline-block">
+                          Via QR & Turnstile
+                        </span>
+                      </div>
+
+                      <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80">
+                        <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
+                          Expiring Soon
+                        </span>
+                        <div className="text-2xl font-black text-amber-600 mt-1">{expiringCount}</div>
+                        <span className="text-[10px] text-amber-700 font-bold mt-1 inline-block">
+                          Within next 7 days
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Simulation Activity Stream */}
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 pt-1">
+                      {/* Check-in feed */}
+                      <div className="lg:col-span-2 border border-slate-200/90 rounded-xl p-3.5 bg-white">
+                        <div className="flex items-center justify-between pb-2.5 border-b border-slate-100">
+                          <span className="text-xs font-bold text-slate-900">Live Turnstile Activity</span>
+                          <span className="text-[10px] font-mono text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                            ● Hardware Connected
+                          </span>
+                        </div>
+                        <div className="mt-2 space-y-2 text-xs">
+                          {members.slice(0, 3).map((m, idx) => (
+                            <div
+                              key={m.id}
+                              className="flex items-center justify-between p-2 rounded-lg bg-slate-50/70 border border-slate-100"
+                            >
+                              <div className="flex items-center gap-2.5">
+                                <div className="w-7 h-7 rounded-full bg-slate-900 text-white font-bold text-[10px] flex items-center justify-center shrink-0">
+                                  {m.firstName[0]}
+                                  {m.lastName[0]}
+                                </div>
+                                <div>
+                                  <div className="font-bold text-slate-900 leading-snug">
+                                    {m.firstName} {m.lastName}
+                                  </div>
+                                  <div className="text-[10px] text-slate-400 font-mono">{m.memberCode}</div>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-lime-100 text-lime-900">
+                                  VERIFIED ENTRY
+                                </span>
+                                <div className="text-[10px] text-slate-400 mt-0.5">
+                                  {idx === 0 ? 'Just now' : `${idx * 14 + 5} min ago`}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Right Quick Summary */}
+                      <div className="border border-slate-200/90 rounded-xl p-3.5 bg-slate-50/60 flex flex-col justify-between">
+                        <div>
+                          <span className="text-xs font-bold text-slate-900 block mb-1">Facility Operations</span>
+                          <p className="text-[11px] text-slate-600 leading-relaxed">
+                            Full audit log recorded. Uncollected balances, pending waivers, and trainer shift rosters update automatically across all devices.
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => onEnterApp('dashboard')}
+                          className="mt-3 w-full py-2 bg-slate-950 hover:bg-slate-900 text-white text-xs font-bold rounded-lg transition"
+                        >
+                          Explore Full Dashboard →
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -333,141 +560,235 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterApp, onOpenAddM
       </section>
 
       {/* =========================================================================
-          3. TRUST / VALUE STRIP
+          4. VALUE PILLARS STRIP
       ========================================================================= */}
-      <section className="bg-slate-950 text-white py-6 border-y border-slate-800">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 text-center items-center">
-            <div className="flex items-center justify-center gap-2 text-xs font-bold text-slate-300">
-              <Users className="w-4 h-4 text-lime-400 shrink-0" />
-              <span>Member Management</span>
+      <section className="py-12 bg-white border-b border-slate-200/80">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <span className="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-6">
+            Everything your gym needs to run better
+          </span>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 sm:gap-6">
+            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/70 text-center">
+              <div className="text-lg font-black text-slate-950">Members</div>
+              <div className="text-xs text-slate-500 mt-1">Directory, Plans & Status</div>
             </div>
-            <div className="flex items-center justify-center gap-2 text-xs font-bold text-slate-300">
-              <QrCode className="w-4 h-4 text-lime-400 shrink-0" />
-              <span>Smart Attendance</span>
+            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/70 text-center">
+              <div className="text-lg font-black text-slate-950">Attendance</div>
+              <div className="text-xs text-slate-500 mt-1">Sub-second QR Check-in</div>
             </div>
-            <div className="flex items-center justify-center gap-2 text-xs font-bold text-slate-300">
-              <CreditCard className="w-4 h-4 text-lime-400 shrink-0" />
-              <span>Payments & Billing</span>
+            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/70 text-center">
+              <div className="text-lg font-black text-slate-950">Payments</div>
+              <div className="text-xs text-slate-500 mt-1">UPI, Cash, GST Receipts</div>
             </div>
-            <div className="flex items-center justify-center gap-2 text-xs font-bold text-slate-300">
-              <UserCheck className="w-4 h-4 text-lime-400 shrink-0" />
-              <span>Trainer Management</span>
+            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/70 text-center">
+              <div className="text-lg font-black text-slate-950">Trainers</div>
+              <div className="text-xs text-slate-500 mt-1">Assignments & Schedules</div>
             </div>
-            <div className="flex items-center justify-center gap-2 text-xs font-bold text-slate-300">
-              <Dumbbell className="w-4 h-4 text-lime-400 shrink-0" />
-              <span>Workout & Diet Plans</span>
-            </div>
-            <div className="flex items-center justify-center gap-2 text-xs font-bold text-slate-300">
-              <BarChart3 className="w-4 h-4 text-lime-400 shrink-0" />
-              <span>Reports & Insights</span>
+            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/70 text-center col-span-2 md:col-span-1">
+              <div className="text-lg font-black text-slate-950">Progress</div>
+              <div className="text-xs text-slate-500 mt-1">Workouts, Diets & Logs</div>
             </div>
           </div>
         </div>
       </section>
 
       {/* =========================================================================
-          4. PRODUCT SHOWCASE (Interactive Tabs showing real product UI)
+          5. PROBLEM VS SOLUTION SECTION
       ========================================================================= */}
-      <section id="product" className="py-20 bg-slate-50/70 border-b border-slate-200/60">
+      <section className="py-20 bg-slate-50/70 border-b border-slate-200/70">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-3xl mx-auto mb-12">
-            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-600 mb-2">
-              Product Tour
+          <div className="text-center max-w-3xl mx-auto mb-16">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-2">
+              The Reality Check
+            </span>
+            <h2 className="text-3xl sm:text-4xl font-black text-slate-950 tracking-tight">
+              Still managing your gym across spreadsheets, paper registers and disconnected tools?
             </h2>
-            <h3 className="text-3xl sm:text-4xl font-black text-slate-950 tracking-tight">
-              Crafted specifically for the modern fitness business
-            </h3>
-            <p className="mt-3 text-sm sm:text-base text-slate-600">
-              Every feature in YGOS is built directly around actual gym operations—from the front-desk turnstile to the owner's financial statement.
+            <p className="mt-3 text-slate-600 text-sm sm:text-base">
+              Running a modern fitness business with fragmented tools burns time, loses money, and creates front-desk chaos.
             </p>
-
-            {/* Showcase Navigation Tabs */}
-            <div className="mt-8 inline-flex flex-wrap justify-center p-1.5 bg-white border border-slate-200/80 rounded-2xl shadow-xs gap-1">
-              {[
-                { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
-                { id: 'members', label: 'Members', icon: Users },
-                { id: 'attendance', label: 'Attendance', icon: QrCode },
-                { id: 'payments', label: 'Payments', icon: CreditCard },
-                { id: 'trainers', label: 'Trainers', icon: UserCheck },
-                { id: 'portal', label: 'Member Portal', icon: Smartphone },
-              ].map((tab) => {
-                const Icon = tab.icon;
-                const isActive = activeShowcaseTab === tab.id;
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveShowcaseTab(tab.id as any)}
-                    className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition ${
-                      isActive
-                        ? 'bg-slate-950 text-white shadow-xs'
-                        : 'text-slate-600 hover:text-slate-950 hover:bg-slate-100'
-                    }`}
-                  >
-                    <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-lime-400' : 'text-slate-400'}`} />
-                    <span>{tab.label}</span>
-                  </button>
-                );
-              })}
-            </div>
           </div>
 
-          {/* Interactive Screen Preview Container */}
-          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xl max-w-5xl mx-auto transition-all">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+            {/* The Old Disconnected Way */}
+            <div className="p-8 rounded-2xl bg-white border border-rose-200/80 shadow-xs space-y-5">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center font-bold">
+                  ✕
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-950">The Disconnected Tool Trap</h3>
+                  <span className="text-xs text-slate-500">How most gyms struggle day-to-day</span>
+                </div>
+              </div>
+
+              <ul className="space-y-3.5 text-xs sm:text-sm text-slate-600">
+                <li className="flex items-start gap-3">
+                  <span className="text-rose-500 font-bold shrink-0 mt-0.5">•</span>
+                  <span>Unrecorded cash payments and manual receipts create revenue leakage.</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="text-rose-500 font-bold shrink-0 mt-0.5">•</span>
+                  <span>Members with expired plans slip past front desk during busy morning rush.</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="text-rose-500 font-bold shrink-0 mt-0.5">•</span>
+                  <span>Member contact details, blood groups, and medical histories scattered across paper files.</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="text-rose-500 font-bold shrink-0 mt-0.5">•</span>
+                  <span>Trainers track workout charts on handwritten notes that get lost or discarded.</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="text-rose-500 font-bold shrink-0 mt-0.5">•</span>
+                  <span>No single screen to answer: <em>"How much money did our gym collect today?"</em></span>
+                </li>
+              </ul>
+            </div>
+
+            {/* The YGOS Unified Way */}
+            <div className="p-8 rounded-2xl bg-white border-2 border-slate-950 shadow-md space-y-5 relative">
+              <span className="absolute -top-3 right-6 bg-lime-400 text-slate-950 font-black text-[10px] uppercase tracking-wider px-3 py-0.5 rounded-full shadow-2xs">
+                The YGOS Solution
+              </span>
+
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-slate-950 text-lime-400 flex items-center justify-center font-bold">
+                  ✓
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-950">One System. One View. One Smarter Gym.</h3>
+                  <span className="text-xs text-slate-500">Unified operational excellence</span>
+                </div>
+              </div>
+
+              <ul className="space-y-3.5 text-xs sm:text-sm text-slate-700">
+                <li className="flex items-start gap-3">
+                  <Check className="w-4 h-4 text-lime-600 font-bold shrink-0 mt-0.5" />
+                  <span>Real-time reconciliation of UPI, cash, and card payments with instant GST receipts.</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <Check className="w-4 h-4 text-lime-600 font-bold shrink-0 mt-0.5" />
+                  <span>Sub-second camera and hardware turnstile QR verification blocks unauthorized entries.</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <Check className="w-4 h-4 text-lime-600 font-bold shrink-0 mt-0.5" />
+                  <span>Single member directory with complete membership, payment, and trainer history.</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <Check className="w-4 h-4 text-lime-600 font-bold shrink-0 mt-0.5" />
+                  <span>Structured digital workout and diet programs accessible directly on member phones.</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <Check className="w-4 h-4 text-lime-600 font-bold shrink-0 mt-0.5" />
+                  <span>Executive dashboards give owners total visibility into revenue, check-ins, and renewals.</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* =========================================================================
+          6. INTERACTIVE PRODUCT SHOWCASE SECTION
+      ========================================================================= */}
+      <section id="product" className="py-20 bg-white border-b border-slate-200/70">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center max-w-3xl mx-auto mb-12">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-2">
+              Inside The Platform
+            </span>
+            <h2 className="text-3xl sm:text-4xl font-black text-slate-950 tracking-tight">
+              A comprehensive operating system built for every gym workflow
+            </h2>
+            <p className="mt-3 text-slate-600 text-sm sm:text-base">
+              Click any module below to preview the interface and test live interactions.
+            </p>
+          </div>
+
+          {/* Module Selector Tabs */}
+          <div className="flex flex-wrap items-center justify-center gap-2 mb-8">
+            {[
+              { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
+              { id: 'members', label: 'Member Directory', icon: Users },
+              { id: 'attendance', label: 'Turnstile Scanner', icon: QrCode },
+              { id: 'payments', label: 'Payments & Billing', icon: CreditCard },
+              { id: 'trainers', label: 'Trainers & Staff', icon: UserCheck },
+              { id: 'portal', label: 'Digital Member Pass', icon: Smartphone },
+            ].map((tab) => {
+              const Icon = tab.icon;
+              const isActive = activeShowcaseTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveShowcaseTab(tab.id as any)}
+                  className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${
+                    isActive
+                      ? 'bg-slate-950 text-white shadow-sm'
+                      : 'bg-slate-100/80 text-slate-700 hover:bg-slate-200/70'
+                  }`}
+                >
+                  <Icon className={`w-4 h-4 ${isActive ? 'text-lime-400' : 'text-slate-500'}`} />
+                  <span>{tab.label}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Showcase Display Card */}
+          <div className="max-w-5xl mx-auto rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm">
             {/* 1. Dashboard Tab */}
             {activeShowcaseTab === 'dashboard' && (
               <div className="space-y-6">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
                   <div>
                     <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                      Module: Executive Dashboard
+                      Module: Executive Overview
                     </span>
-                    <h4 className="text-lg font-black text-slate-900">
-                      Live Pulse of Your Gym Facility
+                    <h4 className="text-lg font-black text-slate-950">
+                      Real-time revenue, renewals, and live occupancy
                     </h4>
                   </div>
                   <button
                     onClick={() => onEnterApp('dashboard')}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-950 text-white text-xs font-bold rounded-lg hover:bg-slate-900 transition"
+                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-slate-950 text-white text-xs font-bold rounded-lg hover:bg-slate-800 transition"
                   >
-                    <span>Open Live Dashboard</span>
+                    <span>Launch Live Dashboard</span>
                     <ArrowRight className="w-3.5 h-3.5 text-lime-400" />
                   </button>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div className="p-4 bg-slate-50 rounded-xl border border-slate-200/80">
-                    <span className="text-xs text-slate-500 font-semibold block">Total Revenue</span>
-                    <span className="text-2xl font-black text-slate-900 mt-1 block">
+                    <span className="text-xs text-slate-500 font-semibold block">Total Revenue (Month)</span>
+                    <span className="text-2xl font-black text-slate-950 mt-1 block">
                       {formatCurrency(totalRev, gym.settings.currencySymbol)}
                     </span>
-                    <span className="text-[11px] text-lime-700 font-bold mt-1 inline-block">
-                      100% reconciled in Hostinger MySQL
+                    <span className="text-[11px] text-emerald-700 font-bold mt-1 inline-block">
+                      100% Reconciled
                     </span>
                   </div>
 
                   <div className="p-4 bg-slate-50 rounded-xl border border-slate-200/80">
-                    <span className="text-xs text-slate-500 font-semibold block">Active Roster</span>
-                    <span className="text-2xl font-black text-slate-900 mt-1 block">
-                      {activeCount} Members
-                    </span>
-                    <span className="text-[11px] text-blue-700 font-bold mt-1 inline-block">
+                    <span className="text-xs text-slate-500 font-semibold block">Active Membership Base</span>
+                    <span className="text-2xl font-black text-slate-950 mt-1 block">{activeCount} Members</span>
+                    <span className="text-[11px] text-amber-700 font-bold mt-1 inline-block">
                       {expiringCount} requiring renewal
                     </span>
                   </div>
 
                   <div className="p-4 bg-slate-50 rounded-xl border border-slate-200/80">
                     <span className="text-xs text-slate-500 font-semibold block">Facility Check-ins</span>
-                    <span className="text-2xl font-black text-slate-900 mt-1 block">
+                    <span className="text-2xl font-black text-slate-950 mt-1 block">
                       {attendance.length} Today
                     </span>
-                    <span className="text-[11px] text-slate-600 font-bold mt-1 inline-block">
+                    <span className="text-[11px] text-slate-600 font-medium mt-1 inline-block">
                       Peak hours: 06:00 - 09:30 AM
                     </span>
                   </div>
                 </div>
 
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-slate-500 leading-relaxed">
                   The executive dashboard calculates cash vs online payments, pending balances, expiring memberships, and staff check-in logs in real time.
                 </p>
               </div>
@@ -475,19 +796,17 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterApp, onOpenAddM
 
             {/* 2. Members Tab */}
             {activeShowcaseTab === 'members' && (
-              <div className="space-y-4">
+              <div className="space-y-5">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
                   <div>
                     <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
                       Module: Member Directory
                     </span>
-                    <h4 className="text-lg font-black text-slate-900">
-                      Complete Member Lifecycle Management
-                    </h4>
+                    <h4 className="text-lg font-black text-slate-950">Complete Member Lifecycle Management</h4>
                   </div>
                   <button
                     onClick={() => onEnterApp('members')}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-950 text-white text-xs font-bold rounded-lg hover:bg-slate-900 transition"
+                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-slate-950 text-white text-xs font-bold rounded-lg hover:bg-slate-800 transition"
                   >
                     <span>View Members List</span>
                     <ArrowRight className="w-3.5 h-3.5 text-lime-400" />
@@ -497,7 +816,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterApp, onOpenAddM
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs">
                     <thead>
-                      <tr className="bg-slate-100/70 text-slate-600 font-bold border-b border-slate-200">
+                      <tr className="bg-slate-100/80 text-slate-600 font-bold border-b border-slate-200">
                         <th className="p-3">Member</th>
                         <th className="p-3">Plan</th>
                         <th className="p-3">Status</th>
@@ -509,7 +828,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterApp, onOpenAddM
                       {members.slice(0, 4).map((m) => (
                         <tr key={m.id} className="hover:bg-slate-50/50">
                           <td className="p-3">
-                            <div className="font-bold text-slate-900">{m.firstName} {m.lastName}</div>
+                            <div className="font-bold text-slate-950">{m.firstName} {m.lastName}</div>
                             <div className="text-[10px] text-slate-400 font-mono">{m.memberCode}</div>
                           </td>
                           <td className="p-3 text-slate-600">{m.currentPlanName || 'Annual Elite VIP'}</td>
@@ -544,52 +863,50 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterApp, onOpenAddM
                     <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
                       Module: Smart Attendance
                     </span>
-                    <h4 className="text-lg font-black text-slate-900">
-                      Fast Turnstile & Kiosk QR Verification
-                    </h4>
+                    <h4 className="text-lg font-black text-slate-950">Fast Turnstile & Kiosk QR Verification</h4>
                   </div>
                   <button
                     onClick={() => onEnterApp('attendance')}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-950 text-white text-xs font-bold rounded-lg hover:bg-slate-900 transition"
+                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-slate-950 text-white text-xs font-bold rounded-lg hover:bg-slate-800 transition"
                   >
-                    <span>Launch Camera Scanner</span>
+                    <span>Launch Scanner</span>
                     <ArrowRight className="w-3.5 h-3.5 text-lime-400" />
                   </button>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="p-4 bg-slate-900 text-white rounded-xl flex flex-col justify-between">
+                  <div className="p-5 bg-slate-950 text-white rounded-xl flex flex-col justify-between">
                     <div>
                       <div className="flex items-center gap-2 text-lime-400 text-xs font-bold mb-2">
                         <QrCode className="w-4 h-4" />
                         <span>Instant Verification Terminal</span>
                       </div>
                       <p className="text-xs text-slate-300 leading-relaxed">
-                        Members present their unique encrypted digital QR pass on mobile. YGOS checks plan validity, warns on unpaid dues, and blocks duplicate punch-ins within 45 minutes automatically.
+                        Members present their unique encrypted digital QR pass on mobile. YGOS checks plan validity, warns on unpaid dues, and blocks duplicate punch-ins automatically.
                       </p>
                     </div>
-                    <div className="mt-4 p-3 bg-slate-800/80 rounded-lg text-[11px] font-mono text-lime-300 border border-slate-700">
+                    <div className="mt-4 p-3 bg-slate-900 rounded-lg text-[11px] font-mono text-lime-300 border border-slate-800">
                       ✓ PASS: FIT-0001 (Rahul Mehta) • ACTIVE • 08:30 AM
                     </div>
                   </div>
 
-                  <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
-                    <span className="text-xs font-bold text-slate-800 block">Attendance Capabilities</span>
+                  <div className="p-5 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
+                    <span className="text-xs font-bold text-slate-900 block">Attendance Capabilities</span>
                     <ul className="text-xs text-slate-600 space-y-2">
                       <li className="flex items-center gap-2">
-                        <Check className="w-3.5 h-3.5 text-lime-600" />
-                        <span>High-speed USB Barcode / QR hardware gun support</span>
+                        <Check className="w-3.5 h-3.5 text-lime-600 font-bold" />
+                        <span>High-speed USB Barcode / QR hardware scanner support</span>
                       </li>
                       <li className="flex items-center gap-2">
-                        <Check className="w-3.5 h-3.5 text-lime-600" />
-                        <span>Front-facing iPad/Tablet kiosk scan mode</span>
+                        <Check className="w-3.5 h-3.5 text-lime-600 font-bold" />
+                        <span>Front-facing iPad and Android tablet kiosk scan mode</span>
                       </li>
                       <li className="flex items-center gap-2">
-                        <Check className="w-3.5 h-3.5 text-lime-600" />
+                        <Check className="w-3.5 h-3.5 text-lime-600 font-bold" />
                         <span>Manual search override by phone, code, or name</span>
                       </li>
                       <li className="flex items-center gap-2">
-                        <Check className="w-3.5 h-3.5 text-lime-600" />
+                        <Check className="w-3.5 h-3.5 text-lime-600 font-bold" />
                         <span>Automated duplicate check-in suppression rules</span>
                       </li>
                     </ul>
@@ -600,19 +917,17 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterApp, onOpenAddM
 
             {/* 4. Payments Tab */}
             {activeShowcaseTab === 'payments' && (
-              <div className="space-y-4">
+              <div className="space-y-5">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
                   <div>
                     <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
                       Module: Payments & Billing
                     </span>
-                    <h4 className="text-lg font-black text-slate-900">
-                      Collect Payments & Print Branded Receipts
-                    </h4>
+                    <h4 className="text-lg font-black text-slate-950">Collect Payments & Print Branded Receipts</h4>
                   </div>
                   <button
                     onClick={() => onEnterApp('payments')}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-950 text-white text-xs font-bold rounded-lg hover:bg-slate-900 transition"
+                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-slate-950 text-white text-xs font-bold rounded-lg hover:bg-slate-800 transition"
                   >
                     <span>View Financials</span>
                     <ArrowRight className="w-3.5 h-3.5 text-lime-400" />
@@ -620,17 +935,23 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterApp, onOpenAddM
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
-                    <span className="text-[11px] text-slate-500 font-bold block">UPI & QR Collection</span>
-                    <p className="text-xs text-slate-700 mt-1">Instant QR generation for GPay, PhonePe, and Paytm counter payments.</p>
+                  <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
+                    <span className="text-xs text-slate-900 font-bold block">UPI & QR Collection</span>
+                    <p className="text-xs text-slate-600 mt-1">
+                      Dynamic QR generation for GPay, PhonePe, and Paytm counter payments.
+                    </p>
                   </div>
-                  <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
-                    <span className="text-[11px] text-slate-500 font-bold block">Partial Due Tracking</span>
-                    <p className="text-xs text-slate-700 mt-1">Record deposits, split payments, and track outstanding balances per member.</p>
+                  <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
+                    <span className="text-xs text-slate-900 font-bold block">Partial Due Tracking</span>
+                    <p className="text-xs text-slate-600 mt-1">
+                      Record deposits, split payments, and track outstanding balances per member.
+                    </p>
                   </div>
-                  <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
-                    <span className="text-[11px] text-slate-500 font-bold block">Printable GST Receipts</span>
-                    <p className="text-xs text-slate-700 mt-1">Thermal 80mm POS or A4 invoice format with gym logo and tax details.</p>
+                  <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
+                    <span className="text-xs text-slate-900 font-bold block">Printable GST Receipts</span>
+                    <p className="text-xs text-slate-600 mt-1">
+                      Thermal 80mm POS or A4 invoice format with gym logo and tax details.
+                    </p>
                   </div>
                 </div>
               </div>
@@ -638,19 +959,17 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterApp, onOpenAddM
 
             {/* 5. Trainers Tab */}
             {activeShowcaseTab === 'trainers' && (
-              <div className="space-y-4">
+              <div className="space-y-5">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
                   <div>
                     <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
                       Module: Trainer Allocation
                     </span>
-                    <h4 className="text-lg font-black text-slate-900">
-                      Staff Shifts, PT Clients & Performance
-                    </h4>
+                    <h4 className="text-lg font-black text-slate-950">Staff Shifts, PT Clients & Performance</h4>
                   </div>
                   <button
                     onClick={() => onEnterApp('trainers')}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-950 text-white text-xs font-bold rounded-lg hover:bg-slate-900 transition"
+                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-slate-950 text-white text-xs font-bold rounded-lg hover:bg-slate-800 transition"
                   >
                     <span>Manage Staff & Trainers</span>
                     <ArrowRight className="w-3.5 h-3.5 text-lime-400" />
@@ -658,26 +977,26 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterApp, onOpenAddM
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 flex items-start gap-3">
-                    <div className="w-10 h-10 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold text-xs shrink-0">
+                  <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 flex items-start gap-3.5">
+                    <div className="w-10 h-10 rounded-full bg-slate-950 text-white flex items-center justify-center font-bold text-xs shrink-0">
                       AK
                     </div>
                     <div>
-                      <h5 className="text-xs font-bold text-slate-900">Arjun Kapoor</h5>
-                      <span className="text-[10px] text-slate-500 block">CrossFit & Hypertrophy • Morning Shift</span>
+                      <h5 className="text-xs font-bold text-slate-950">Arjun Kapoor</h5>
+                      <span className="text-[11px] text-slate-500 block">CrossFit & Strength • Morning Shift</span>
                       <div className="mt-2 text-[11px] text-slate-700 font-medium">
                         Assigned: 8 Active PT Clients • Rating 4.9 ★
                       </div>
                     </div>
                   </div>
 
-                  <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 flex items-start gap-3">
-                    <div className="w-10 h-10 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold text-xs shrink-0">
+                  <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 flex items-start gap-3.5">
+                    <div className="w-10 h-10 rounded-full bg-slate-950 text-white flex items-center justify-center font-bold text-xs shrink-0">
                       SP
                     </div>
                     <div>
-                      <h5 className="text-xs font-bold text-slate-900">Sneha Patel</h5>
-                      <span className="text-[10px] text-slate-500 block">Yoga & Core Mobility • Evening Shift</span>
+                      <h5 className="text-xs font-bold text-slate-950">Sneha Patel</h5>
+                      <span className="text-[11px] text-slate-500 block">Yoga & Mobility • Evening Shift</span>
                       <div className="mt-2 text-[11px] text-slate-700 font-medium">
                         Assigned: 12 Active PT Clients • Rating 4.8 ★
                       </div>
@@ -689,36 +1008,34 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterApp, onOpenAddM
 
             {/* 6. Member Portal Tab */}
             {activeShowcaseTab === 'portal' && (
-              <div className="space-y-4">
+              <div className="space-y-5">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
                   <div>
                     <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
                       Module: Digital Member Pass
                     </span>
-                    <h4 className="text-lg font-black text-slate-900">
-                      Frictionless Self-Service Member Portal
-                    </h4>
+                    <h4 className="text-lg font-black text-slate-950">Frictionless Self-Service Member Portal</h4>
                   </div>
                   <button
                     onClick={() => onEnterApp('portal')}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-950 text-white text-xs font-bold rounded-lg hover:bg-slate-900 transition"
+                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-slate-950 text-white text-xs font-bold rounded-lg hover:bg-slate-800 transition"
                   >
                     <span>Preview Member Portal</span>
                     <ArrowRight className="w-3.5 h-3.5 text-lime-400" />
                   </button>
                 </div>
 
-                <div className="p-4 bg-gradient-to-r from-slate-900 to-slate-950 text-white rounded-xl flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="p-6 bg-slate-950 text-white rounded-xl flex flex-col sm:flex-row items-center justify-between gap-6 border border-slate-800">
                   <div>
                     <span className="text-[10px] uppercase font-bold text-lime-400 tracking-wider">
-                      Digital Member Pass • No plastic cards needed
+                      Digital Member Pass • No plastic cards required
                     </span>
-                    <h5 className="text-base font-black mt-1">Ananya Iyer (FIT-0002)</h5>
-                    <p className="text-xs text-slate-400 mt-0.5">
-                      Quarterly Transformation • 5 Days Remaining • Trainer: Sneha Patel
+                    <h5 className="text-base font-black mt-1">Rahul Mehta (FIT-0001)</h5>
+                    <p className="text-xs text-slate-400 mt-1">
+                      Annual Elite VIP • 184 Days Remaining • Assigned Trainer: Arjun Kapoor
                     </p>
                   </div>
-                  <div className="p-2 bg-white rounded-lg shrink-0">
+                  <div className="p-2 bg-white rounded-xl shrink-0 shadow-md">
                     <QrCode className="w-16 h-16 text-slate-950" />
                   </div>
                 </div>
@@ -729,239 +1046,310 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterApp, onOpenAddM
       </section>
 
       {/* =========================================================================
-          5. WHY YGOS
+          7. THE SIGNATURE WORKFLOW SECTION
       ========================================================================= */}
-      <section className="py-20 bg-white border-b border-slate-200/60">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-3xl mx-auto mb-14">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-600 block mb-2">
-              Why Fitness Businesses Choose Us
-            </span>
-            <h2 className="text-3xl sm:text-4xl font-black text-slate-950 tracking-tight">
-              Designed to eliminate friction from every corner of your gym
-            </h2>
-            <p className="mt-3 text-slate-600 text-sm sm:text-base">
-              Say goodbye to messy spreadsheets, lost membership cards, manual registers, and unaccounted cash collections.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div className="p-6 rounded-2xl bg-slate-50 border border-slate-200/80 hover:border-slate-300 transition shadow-xs">
-              <div className="w-10 h-10 rounded-xl bg-slate-950 text-lime-400 flex items-center justify-center font-bold mb-4">
-                <Zap className="w-5 h-5" />
-              </div>
-              <h3 className="text-base font-bold text-slate-950">Less Manual Work</h3>
-              <p className="mt-2 text-xs sm:text-sm text-slate-600 leading-relaxed">
-                Automate attendance tracking, renewal follow-ups, fee calculations, and receipt generation so your team can focus on member satisfaction.
-              </p>
-            </div>
-
-            <div className="p-6 rounded-2xl bg-slate-50 border border-slate-200/80 hover:border-slate-300 transition shadow-xs">
-              <div className="w-10 h-10 rounded-xl bg-slate-950 text-lime-400 flex items-center justify-center font-bold mb-4">
-                <Users className="w-5 h-5" />
-              </div>
-              <h3 className="text-base font-bold text-slate-950">Better Member Management</h3>
-              <p className="mt-2 text-xs sm:text-sm text-slate-600 leading-relaxed">
-                Maintain single-source-of-truth profiles with attendance history, emergency contacts, assigned trainers, and payment audit logs.
-              </p>
-            </div>
-
-            <div className="p-6 rounded-2xl bg-slate-50 border border-slate-200/80 hover:border-slate-300 transition shadow-xs">
-              <div className="w-10 h-10 rounded-xl bg-slate-950 text-lime-400 flex items-center justify-center font-bold mb-4">
-                <Clock className="w-5 h-5" />
-              </div>
-              <h3 className="text-base font-bold text-slate-950">Faster Daily Operations</h3>
-              <p className="mt-2 text-xs sm:text-sm text-slate-600 leading-relaxed">
-                Front desk check-ins happen in under 0.8 seconds. Register new members and collect admission fees in a clean, 30-second workflow.
-              </p>
-            </div>
-
-            <div className="p-6 rounded-2xl bg-slate-50 border border-slate-200/80 hover:border-slate-300 transition shadow-xs">
-              <div className="w-10 h-10 rounded-xl bg-slate-950 text-lime-400 flex items-center justify-center font-bold mb-4">
-                <BarChart3 className="w-5 h-5" />
-              </div>
-              <h3 className="text-base font-bold text-slate-950">Better Visibility</h3>
-              <p className="mt-2 text-xs sm:text-sm text-slate-600 leading-relaxed">
-                Clear dashboards show exactly how much revenue was collected today, who checked in, and which memberships expire this week.
-              </p>
-            </div>
-
-            <div className="p-6 rounded-2xl bg-slate-50 border border-slate-200/80 hover:border-slate-300 transition shadow-xs">
-              <div className="w-10 h-10 rounded-xl bg-slate-950 text-lime-400 flex items-center justify-center font-bold mb-4">
-                <Smartphone className="w-5 h-5" />
-              </div>
-              <h3 className="text-base font-bold text-slate-950">Professional Member Experience</h3>
-              <p className="mt-2 text-xs sm:text-sm text-slate-600 leading-relaxed">
-                Impress your gym clientele with instant digital QR passes, clean printable payment vouchers, and structured workout schedules.
-              </p>
-            </div>
-
-            <div className="p-6 rounded-2xl bg-slate-50 border border-slate-200/80 hover:border-slate-300 transition shadow-xs">
-              <div className="w-10 h-10 rounded-xl bg-slate-950 text-lime-400 flex items-center justify-center font-bold mb-4">
-                <TrendingUp className="w-5 h-5" />
-              </div>
-              <h3 className="text-base font-bold text-slate-950">Business Growth</h3>
-              <p className="mt-2 text-xs sm:text-sm text-slate-600 leading-relaxed">
-                Cut member churn with automated expiration alerts and upsell personal training and annual transformations with transparent data.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* =========================================================================
-          6. FEATURE GRID (Clean icon-based cards)
-      ========================================================================= */}
-      <section id="features" className="py-20 bg-slate-50/70 border-b border-slate-200/60">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-3xl mx-auto mb-14">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-600 block mb-2">
-              Capabilities
-            </span>
-            <h2 className="text-3xl sm:text-4xl font-black text-slate-950 tracking-tight">
-              Every tool required to run a high-performing gym
-            </h2>
-            <p className="mt-3 text-slate-600 text-sm sm:text-base">
-              Built for single-location studios and multi-branch fitness chains alike.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="p-5 bg-white rounded-xl border border-slate-200 shadow-xs">
-              <div className="w-8 h-8 rounded-lg bg-lime-50 text-lime-700 flex items-center justify-center mb-3">
-                <Users className="w-4 h-4" />
-              </div>
-              <h4 className="text-sm font-bold text-slate-950">Member Profiles</h4>
-              <p className="text-xs text-slate-600 mt-1">
-                Store member codes, contact info, blood group, emergency contacts, and active plan details.
-              </p>
-            </div>
-
-            <div className="p-5 bg-white rounded-xl border border-slate-200 shadow-xs">
-              <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center mb-3">
-                <QrCode className="w-4 h-4" />
-              </div>
-              <h4 className="text-sm font-bold text-slate-950">QR Turnstile Check-in</h4>
-              <p className="text-xs text-slate-600 mt-1">
-                Fast turnstile check-in with camera scanner, barcode support, and anti-duplicate logic.
-              </p>
-            </div>
-
-            <div className="p-5 bg-white rounded-xl border border-slate-200 shadow-xs">
-              <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center mb-3">
-                <CreditCard className="w-4 h-4" />
-              </div>
-              <h4 className="text-sm font-bold text-slate-950">Payments & Receipts</h4>
-              <p className="text-xs text-slate-600 mt-1">
-                Record UPI, card, and cash collections with printable tax receipts and balance tracking.
-              </p>
-            </div>
-
-            <div className="p-5 bg-white rounded-xl border border-slate-200 shadow-xs">
-              <div className="w-8 h-8 rounded-lg bg-purple-50 text-purple-700 flex items-center justify-center mb-3">
-                <UserCheck className="w-4 h-4" />
-              </div>
-              <h4 className="text-sm font-bold text-slate-950">Trainer Management</h4>
-              <p className="text-xs text-slate-600 mt-1">
-                Assign members to certified personal trainers and track shift schedules and client ratings.
-              </p>
-            </div>
-
-            <div className="p-5 bg-white rounded-xl border border-slate-200 shadow-xs">
-              <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-700 flex items-center justify-center mb-3">
-                <Dumbbell className="w-4 h-4" />
-              </div>
-              <h4 className="text-sm font-bold text-slate-950">Workout Programming</h4>
-              <p className="text-xs text-slate-600 mt-1">
-                Design custom exercise routines, reps, sets, and rest intervals tailored for each member goal.
-              </p>
-            </div>
-
-            <div className="p-5 bg-white rounded-xl border border-slate-200 shadow-xs">
-              <div className="w-8 h-8 rounded-lg bg-rose-50 text-rose-700 flex items-center justify-center mb-3">
-                <Utensils className="w-4 h-4" />
-              </div>
-              <h4 className="text-sm font-bold text-slate-950">Diet & Nutrition</h4>
-              <p className="text-xs text-slate-600 mt-1">
-                Assign meal plans with macronutrient breakdowns, calorie targets, and hydration reminders.
-              </p>
-            </div>
-
-            <div className="p-5 bg-white rounded-xl border border-slate-200 shadow-xs">
-              <div className="w-8 h-8 rounded-lg bg-cyan-50 text-cyan-700 flex items-center justify-center mb-3">
-                <BarChart3 className="w-4 h-4" />
-              </div>
-              <h4 className="text-sm font-bold text-slate-950">Body Measurements</h4>
-              <p className="text-xs text-slate-600 mt-1">
-                Track weight, chest, waist, biceps, and body fat percent across every transformation milestone.
-              </p>
-            </div>
-
-            <div className="p-5 bg-white rounded-xl border border-slate-200 shadow-xs">
-              <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-700 flex items-center justify-center mb-3">
-                <Server className="w-4 h-4" />
-              </div>
-              <h4 className="text-sm font-bold text-slate-950">Hostinger MySQL Native</h4>
-              <p className="text-xs text-slate-600 mt-1">
-                Zero proprietary lock-in. Connect directly to your Hostinger MySQL database via phpMyAdmin.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* =========================================================================
-          7. WORKFLOW SECTION
-      ========================================================================= */}
-      <section id="workflow" className="py-20 bg-white border-b border-slate-200/60">
+      <section id="workflow" className="py-20 bg-slate-50/70 border-b border-slate-200/70">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto mb-16">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-600 block mb-2">
-              Operational Pipeline
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-2">
+              From First Visit to Long-Term Member
             </span>
             <h2 className="text-3xl sm:text-4xl font-black text-slate-950 tracking-tight">
-              How YGOS powers your gym day after day
+              How YGOS powers the complete gym journey
             </h2>
             <p className="mt-3 text-slate-600 text-sm sm:text-base">
-              From the moment a lead walks through the door to ongoing membership renewal and gym expansion.
+              Every step is connected. No redundant data entry, no dropped follow-ups.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-6 gap-3 relative">
+          {/* 8-Stage Pipeline Visualization */}
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-2.5">
             {[
-              { step: '01', title: 'Add Member', desc: 'Capture name, photo, phone, and emergency contact in seconds.' },
-              { step: '02', title: 'Manage Membership', desc: 'Assign monthly, quarterly, or annual plans with discount rules.' },
-              { step: '03', title: 'Track Attendance', desc: 'Members scan their pass via turnstile camera or reception kiosk.' },
-              { step: '04', title: 'Collect Payment', desc: 'Accept UPI, cash, card; instantly print or WhatsApp receipt.' },
-              { step: '05', title: 'Engage Member', desc: 'Assign workout & diet charts and monitor body progress gains.' },
-              { step: '06', title: 'Grow Gym', desc: 'Track renewals, optimize peak hours, and scale to multiple branches.' },
-            ].map((st, i) => (
+              {
+                step: '01',
+                title: 'New Member',
+                desc: 'Quick 30-sec profile setup with photo and contacts.',
+              },
+              {
+                step: '02',
+                title: 'Membership',
+                desc: 'Assign plan, validity dates, and payment terms.',
+              },
+              {
+                step: '03',
+                title: 'Check-in',
+                desc: 'Sub-second QR scan at door with anti-duplicate logic.',
+              },
+              {
+                step: '04',
+                title: 'Trainer',
+                desc: 'Assign trainer for personal coaching and guidance.',
+              },
+              {
+                step: '05',
+                title: 'Workout / Diet',
+                desc: 'Prescribe weekly exercise splits and meal targets.',
+              },
+              {
+                step: '06',
+                title: 'Progress',
+                desc: 'Track body fat, weight, and tape measurements.',
+              },
+              {
+                step: '07',
+                title: 'Renewal',
+                desc: 'Automated expiration alerts before membership lapses.',
+              },
+              {
+                step: '08',
+                title: 'Retention',
+                desc: 'Maintain member loyalty and maximize lifetime value.',
+              },
+            ].map((item, idx) => (
               <div
-                key={st.step}
-                className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-left flex flex-col justify-between relative group hover:border-slate-300 transition"
+                key={item.step}
+                className="p-3.5 rounded-xl bg-white border border-slate-200 flex flex-col justify-between hover:border-slate-300 transition shadow-2xs"
               >
                 <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-xs font-black font-mono text-slate-600 bg-slate-200/70 px-2 py-0.5 rounded-md">
-                      {st.step}
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[10px] font-black font-mono text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded-md">
+                      {item.step}
                     </span>
-                    {i < 5 && (
-                      <ChevronRight className="w-4 h-4 text-slate-300 hidden md:block" />
+                    {idx < 7 && (
+                      <ChevronRight className="w-3.5 h-3.5 text-slate-300 hidden lg:block" />
                     )}
                   </div>
-                  <h4 className="text-sm font-bold text-slate-900 leading-snug">{st.title}</h4>
-                  <p className="text-[11px] text-slate-500 mt-1.5 leading-relaxed">{st.desc}</p>
+                  <h4 className="text-xs font-bold text-slate-950 leading-snug">{item.title}</h4>
+                  <p className="text-[10px] text-slate-500 mt-1.5 leading-relaxed">{item.desc}</p>
                 </div>
               </div>
             ))}
           </div>
+
+          <div className="mt-8 text-center text-xs font-semibold text-slate-500">
+            YGOS connects the entire gym journey.
+          </div>
         </div>
       </section>
 
       {/* =========================================================================
-          8. MEMBER EXPERIENCE SECTION
+          8. BUILT FOR EVERY PART OF YOUR GYM SECTION
       ========================================================================= */}
-      <section id="member-experience" className="py-20 bg-slate-950 text-white border-b border-slate-800">
+      <section id="solutions" className="py-20 bg-white border-b border-slate-200/70">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center max-w-3xl mx-auto mb-16">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-2">
+              Role-Based Architecture
+            </span>
+            <h2 className="text-3xl sm:text-4xl font-black text-slate-950 tracking-tight">
+              Built for every part of your gym
+            </h2>
+            <p className="mt-3 text-slate-600 text-sm sm:text-base">
+              Tailored workspaces for owners, front desk, trainers, and members.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {/* Gym Owners */}
+            <div className="p-6 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col justify-between">
+              <div>
+                <div className="w-10 h-10 rounded-xl bg-slate-950 text-lime-400 flex items-center justify-center font-bold mb-4">
+                  <BarChart3 className="w-5 h-5" />
+                </div>
+                <h3 className="text-base font-bold text-slate-950">Gym Owners</h3>
+                <p className="text-xs text-slate-500 font-semibold mt-0.5 mb-3">
+                  Know your numbers. Control your operations.
+                </p>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  Real-time visibility into revenue, pending balances, member retention, and staff accountability across single or multi-branch facilities.
+                </p>
+              </div>
+              <button
+                onClick={() => handleRoleSignIn('gym_owner')}
+                className="mt-6 text-xs font-bold text-slate-900 hover:text-slate-700 inline-flex items-center gap-1.5"
+              >
+                <span>Owner Dashboard</span>
+                <ArrowRight className="w-3 h-3 text-lime-600" />
+              </button>
+            </div>
+
+            {/* Front Desk / Staff */}
+            <div className="p-6 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col justify-between">
+              <div>
+                <div className="w-10 h-10 rounded-xl bg-slate-950 text-lime-400 flex items-center justify-center font-bold mb-4">
+                  <QrCode className="w-5 h-5" />
+                </div>
+                <h3 className="text-base font-bold text-slate-950">Front Desk / Staff</h3>
+                <p className="text-xs text-slate-500 font-semibold mt-0.5 mb-3">
+                  Check members in. Collect payments. Stay organized.
+                </p>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  Lightning-fast QR verification, 30-second new registrations, and instant POS receipt printing with zero front-desk bottlenecks.
+                </p>
+              </div>
+              <button
+                onClick={() => handleRoleSignIn('staff')}
+                className="mt-6 text-xs font-bold text-slate-900 hover:text-slate-700 inline-flex items-center gap-1.5"
+              >
+                <span>Staff View</span>
+                <ArrowRight className="w-3 h-3 text-lime-600" />
+              </button>
+            </div>
+
+            {/* Trainers */}
+            <div className="p-6 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col justify-between">
+              <div>
+                <div className="w-10 h-10 rounded-xl bg-slate-950 text-lime-400 flex items-center justify-center font-bold mb-4">
+                  <UserCheck className="w-5 h-5" />
+                </div>
+                <h3 className="text-base font-bold text-slate-950">Trainers</h3>
+                <p className="text-xs text-slate-500 font-semibold mt-0.5 mb-3">
+                  Manage assigned members, workouts and progress.
+                </p>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  Create customized workout splits, assign target calorie and diet templates, and track client transformation milestones.
+                </p>
+              </div>
+              <button
+                onClick={() => handleRoleSignIn('trainer')}
+                className="mt-6 text-xs font-bold text-slate-900 hover:text-slate-700 inline-flex items-center gap-1.5"
+              >
+                <span>Trainer View</span>
+                <ArrowRight className="w-3 h-3 text-lime-600" />
+              </button>
+            </div>
+
+            {/* Members */}
+            <div className="p-6 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col justify-between">
+              <div>
+                <div className="w-10 h-10 rounded-xl bg-slate-950 text-lime-400 flex items-center justify-center font-bold mb-4">
+                  <Smartphone className="w-5 h-5" />
+                </div>
+                <h3 className="text-base font-bold text-slate-950">Members</h3>
+                <p className="text-xs text-slate-500 font-semibold mt-0.5 mb-3">
+                  Access membership, digital pass, workouts and progress.
+                </p>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  Zero app install required. Members open their unique pass on their mobile browser to enter the gym and view their trainer programs.
+                </p>
+              </div>
+              <button
+                onClick={() => handleRoleSignIn('member')}
+                className="mt-6 text-xs font-bold text-slate-900 hover:text-slate-700 inline-flex items-center gap-1.5"
+              >
+                <span>Member Portal</span>
+                <ArrowRight className="w-3 h-3 text-lime-600" />
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* =========================================================================
+          9. OUTCOME-BASED FEATURES GRID
+      ========================================================================= */}
+      <section id="features" className="py-20 bg-slate-50/70 border-b border-slate-200/70">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center max-w-3xl mx-auto mb-16">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-2">
+              Core Capabilities
+            </span>
+            <h2 className="text-3xl sm:text-4xl font-black text-slate-950 tracking-tight">
+              Everything your gym needs. Nothing scattered.
+            </h2>
+            <p className="mt-3 text-slate-600 text-sm sm:text-base">
+              Engineered specifically for the demands of commercial gyms, fitness clubs, and boutique studios.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="p-5 bg-white rounded-xl border border-slate-200 shadow-2xs">
+              <div className="w-8 h-8 rounded-lg bg-lime-100 text-lime-800 flex items-center justify-center mb-3 font-bold">
+                <Users className="w-4 h-4" />
+              </div>
+              <h4 className="text-sm font-bold text-slate-950">Member Management</h4>
+              <p className="text-xs text-slate-600 mt-1.5 leading-relaxed">
+                One place for member profiles, memberships, payment history, emergency contacts, and active status.
+              </p>
+            </div>
+
+            <div className="p-5 bg-white rounded-xl border border-slate-200 shadow-2xs">
+              <div className="w-8 h-8 rounded-lg bg-blue-100 text-blue-800 flex items-center justify-center mb-3 font-bold">
+                <QrCode className="w-4 h-4" />
+              </div>
+              <h4 className="text-sm font-bold text-slate-950">Attendance</h4>
+              <p className="text-xs text-slate-600 mt-1.5 leading-relaxed">
+                Fast QR, barcode, and manual check-ins with anti-duplicate logic and real-time turnstile verification.
+              </p>
+            </div>
+
+            <div className="p-5 bg-white rounded-xl border border-slate-200 shadow-2xs">
+              <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-800 flex items-center justify-center mb-3 font-bold">
+                <CreditCard className="w-4 h-4" />
+              </div>
+              <h4 className="text-sm font-bold text-slate-950">Payments & Billing</h4>
+              <p className="text-xs text-slate-600 mt-1.5 leading-relaxed">
+                Track collections, balance dues, UPI transactions, and print professional thermal and A4 GST receipts.
+              </p>
+            </div>
+
+            <div className="p-5 bg-white rounded-xl border border-slate-200 shadow-2xs">
+              <div className="w-8 h-8 rounded-lg bg-purple-100 text-purple-800 flex items-center justify-center mb-3 font-bold">
+                <UserCheck className="w-4 h-4" />
+              </div>
+              <h4 className="text-sm font-bold text-slate-950">Trainer Management</h4>
+              <p className="text-xs text-slate-600 mt-1.5 leading-relaxed">
+                Assignments, PT client rosters, shift timings, client ratings, and staff performance records.
+              </p>
+            </div>
+
+            <div className="p-5 bg-white rounded-xl border border-slate-200 shadow-2xs">
+              <div className="w-8 h-8 rounded-lg bg-amber-100 text-amber-800 flex items-center justify-center mb-3 font-bold">
+                <Dumbbell className="w-4 h-4" />
+              </div>
+              <h4 className="text-sm font-bold text-slate-950">Workout Plans</h4>
+              <p className="text-xs text-slate-600 mt-1.5 leading-relaxed">
+                Prescribe structured exercise splits, sets, reps, and rest intervals tailored for each member's goal.
+              </p>
+            </div>
+
+            <div className="p-5 bg-white rounded-xl border border-slate-200 shadow-2xs">
+              <div className="w-8 h-8 rounded-lg bg-rose-100 text-rose-800 flex items-center justify-center mb-3 font-bold">
+                <Utensils className="w-4 h-4" />
+              </div>
+              <h4 className="text-sm font-bold text-slate-950">Diet & Nutrition</h4>
+              <p className="text-xs text-slate-600 mt-1.5 leading-relaxed">
+                Assign meal plans with macronutrient targets, calorie budgets, and hydration recommendations.
+              </p>
+            </div>
+
+            <div className="p-5 bg-white rounded-xl border border-slate-200 shadow-2xs">
+              <div className="w-8 h-8 rounded-lg bg-cyan-100 text-cyan-800 flex items-center justify-center mb-3 font-bold">
+                <Activity className="w-4 h-4" />
+              </div>
+              <h4 className="text-sm font-bold text-slate-950">Progress Tracking</h4>
+              <p className="text-xs text-slate-600 mt-1.5 leading-relaxed">
+                Log body weight, body fat %, chest, waist, and biceps measurements across transformation phases.
+              </p>
+            </div>
+
+            <div className="p-5 bg-white rounded-xl border border-slate-200 shadow-2xs">
+              <div className="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-800 flex items-center justify-center mb-3 font-bold">
+                <BarChart3 className="w-4 h-4" />
+              </div>
+              <h4 className="text-sm font-bold text-slate-950">Reports & Insights</h4>
+              <p className="text-xs text-slate-600 mt-1.5 leading-relaxed">
+                Real-time collection reports, peak-hour occupancy analytics, and automated renewal forecasting.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* =========================================================================
+          10. MEMBER-FACING EXPERIENCE SECTION
+      ========================================================================= */}
+      <section className="py-20 bg-slate-950 text-white border-b border-slate-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div>
@@ -970,58 +1358,46 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterApp, onOpenAddM
                 <span>Member-Facing Experience</span>
               </div>
               <h2 className="text-3xl sm:text-4xl font-black tracking-tight leading-tight">
-                Give your members a digital experience they love
+                Give your members a digital experience they appreciate
               </h2>
               <p className="mt-4 text-slate-300 text-sm sm:text-base leading-relaxed">
-                Gym members get immediate access to their personal digital pass, eliminating physical card printing costs and replacement hassles forever.
+                Eliminate physical card printing costs, lost credentials, and front-desk friction. Every member gets an encrypted digital pass accessible from their smartphone browser.
               </p>
 
-              <div className="mt-8 space-y-4">
-                <div className="flex items-start gap-3.5">
-                  <div className="w-7 h-7 rounded-lg bg-lime-400/20 text-lime-400 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">
+              <div className="mt-8 space-y-4 text-xs sm:text-sm">
+                <div className="flex items-start gap-3">
+                  <div className="w-6 h-6 rounded-md bg-lime-400/20 text-lime-400 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">
                     ✓
                   </div>
                   <div>
-                    <h4 className="text-sm font-bold text-white">Digital Member Pass</h4>
-                    <p className="text-xs text-slate-400 mt-0.5">
-                      Encrypted personal QR entry token available right on their mobile browser.
-                    </p>
+                    <strong className="text-white block font-bold">Instant Digital QR Pass</strong>
+                    <span className="text-slate-400 text-xs">
+                      Always with them on their mobile. Sub-second scan at entrance turnstile.
+                    </span>
                   </div>
                 </div>
 
-                <div className="flex items-start gap-3.5">
-                  <div className="w-7 h-7 rounded-lg bg-lime-400/20 text-lime-400 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">
+                <div className="flex items-start gap-3">
+                  <div className="w-6 h-6 rounded-md bg-lime-400/20 text-lime-400 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">
                     ✓
                   </div>
                   <div>
-                    <h4 className="text-sm font-bold text-white">Live Attendance & Streaks</h4>
-                    <p className="text-xs text-slate-400 mt-0.5">
-                      Members track total visits, workout streaks, and see monthly gym regularity.
-                    </p>
+                    <strong className="text-white block font-bold">Workout Streaks & Attendance Logs</strong>
+                    <span className="text-slate-400 text-xs">
+                      Members view total visits, workout regularity, and stay motivated.
+                    </span>
                   </div>
                 </div>
 
-                <div className="flex items-start gap-3.5">
-                  <div className="w-7 h-7 rounded-lg bg-lime-400/20 text-lime-400 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">
+                <div className="flex items-start gap-3">
+                  <div className="w-6 h-6 rounded-md bg-lime-400/20 text-lime-400 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">
                     ✓
                   </div>
                   <div>
-                    <h4 className="text-sm font-bold text-white">Workout & Diet Plans</h4>
-                    <p className="text-xs text-slate-400 mt-0.5">
-                      Assigned workout days, target muscle groups, and calorie charts from their trainer.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-3.5">
-                  <div className="w-7 h-7 rounded-lg bg-lime-400/20 text-lime-400 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">
-                    ✓
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-bold text-white">Body Progress Records</h4>
-                    <p className="text-xs text-slate-400 mt-0.5">
-                      Logged body weight, body fat %, and tape measurements over time.
-                    </p>
+                    <strong className="text-white block font-bold">Assigned Workout & Diet Charts</strong>
+                    <span className="text-slate-400 text-xs">
+                      Personal training clients see their daily routines and meal guidance.
+                    </span>
                   </div>
                 </div>
               </div>
@@ -1029,7 +1405,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterApp, onOpenAddM
               <div className="mt-8">
                 <button
                   onClick={() => onEnterApp('portal')}
-                  className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-lime-400 hover:bg-lime-300 text-slate-950 font-bold text-xs transition"
+                  className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-lime-400 hover:bg-lime-300 text-slate-950 font-bold text-xs transition shadow-sm"
                 >
                   <span>Experience Member Pass View</span>
                   <ArrowRight className="w-4 h-4" />
@@ -1037,8 +1413,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterApp, onOpenAddM
               </div>
             </div>
 
-            {/* Member Pass Mockup Card */}
-            <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 max-w-md mx-auto w-full shadow-2xl relative">
+            {/* Mobile Pass Mockup Card */}
+            <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 max-w-sm mx-auto w-full shadow-2xl">
               <div className="flex justify-between items-center pb-4 border-b border-slate-800">
                 <div className="flex items-center gap-2">
                   <YgosLogo size="sm" variant="light" showSubtitle={false} showParentBrand={false} />
@@ -1054,11 +1430,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterApp, onOpenAddM
                   RM
                 </div>
                 <h3 className="text-lg font-bold text-white mt-3">Rahul Mehta</h3>
-                <p className="text-xs text-slate-400 font-mono">FIT-0001 • PowerFit Arena</p>
+                <p className="text-xs text-slate-400 font-mono">{gym.name}</p>
                 <div className="mt-4 p-4 bg-white rounded-2xl inline-block shadow-lg">
                   <QrCode className="w-28 h-28 text-slate-950" />
                 </div>
-                <p className="text-[10px] text-slate-400 mt-2 font-mono">Scan at gym turnstile to enter</p>
+                <p className="text-[10px] text-slate-400 mt-2 font-mono">Present at reception or turnstile</p>
               </div>
 
               <div className="grid grid-cols-2 gap-2 pt-4 border-t border-slate-800 text-left text-xs">
@@ -1077,113 +1453,111 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterApp, onOpenAddM
       </section>
 
       {/* =========================================================================
-          9. GYM OWNER SECTION
+          11. WHY FITNESS BUSINESSES CHOOSE YGOS
       ========================================================================= */}
-      <section id="owner-insights" className="py-20 bg-slate-50/70 border-b border-slate-200/60">
+      <section className="py-20 bg-white border-b border-slate-200/70">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto mb-16">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-600 block mb-2">
-              For Gym Owners
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-2">
+              The YGOS Advantage
             </span>
             <h2 className="text-3xl sm:text-4xl font-black text-slate-950 tracking-tight">
-              Know what's happening in your gym — at a glance.
+              Why gym owners trust YGOS
             </h2>
             <p className="mt-3 text-slate-600 text-sm sm:text-base">
-              Complete oversight over your revenue, active members, trainer productivity, and upcoming expirations from any phone, laptop, or tablet.
+              Built specifically for gym operators, not generic office management.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs">
-              <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-900 flex items-center justify-center font-bold mb-4">
-                <CreditCard className="w-5 h-5 text-emerald-600" />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="p-6 rounded-2xl bg-slate-50 border border-slate-200/80">
+              <div className="w-10 h-10 rounded-xl bg-slate-950 text-lime-400 flex items-center justify-center font-bold mb-4">
+                <Zap className="w-5 h-5" />
               </div>
-              <h3 className="text-base font-bold text-slate-950">Revenue & Cash Flow</h3>
-              <p className="mt-2 text-xs text-slate-600 leading-relaxed">
-                Breakdown of daily collections via UPI, cash, card, and bank transfers with exact cashier and staff audit timestamps.
+              <h3 className="text-base font-bold text-slate-950">Simple & Fast</h3>
+              <p className="mt-2 text-xs sm:text-sm text-slate-600 leading-relaxed">
+                Zero clutter, intuitive interface. Your reception staff and trainers can master daily workflows in under 10 minutes.
               </p>
-              <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-slate-700">
-                <span>Total Collected:</span>
-                <span className="text-slate-950 font-black">{formatCurrency(totalRev, gym.settings.currencySymbol)}</span>
-              </div>
             </div>
 
-            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs">
-              <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-900 flex items-center justify-center font-bold mb-4">
-                <Clock className="w-5 h-5 text-amber-600" />
+            <div className="p-6 rounded-2xl bg-slate-50 border border-slate-200/80">
+              <div className="w-10 h-10 rounded-xl bg-slate-950 text-lime-400 flex items-center justify-center font-bold mb-4">
+                <Layers className="w-5 h-5" />
               </div>
-              <h3 className="text-base font-bold text-slate-950">Expiring Memberships</h3>
-              <p className="mt-2 text-xs text-slate-600 leading-relaxed">
-                Identify accounts expiring in the next 7 to 15 days before they drop off. Send one-click WhatsApp renewal links directly.
+              <h3 className="text-base font-bold text-slate-950">Fully Connected</h3>
+              <p className="mt-2 text-xs sm:text-sm text-slate-600 leading-relaxed">
+                Attendance, billing, member profiles, and renewals seamlessly talk to each other without duplicate entries.
               </p>
-              <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-slate-700">
-                <span>Requires Renewal:</span>
-                <span className="text-amber-600 font-black">{expiringCount} Members</span>
-              </div>
             </div>
 
-            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs">
-              <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-900 flex items-center justify-center font-bold mb-4">
-                <UserCheck className="w-5 h-5 text-blue-600" />
+            <div className="p-6 rounded-2xl bg-slate-50 border border-slate-200/80">
+              <div className="w-10 h-10 rounded-xl bg-slate-950 text-lime-400 flex items-center justify-center font-bold mb-4">
+                <TrendingUp className="w-5 h-5" />
               </div>
-              <h3 className="text-base font-bold text-slate-950">Staff & Trainer Activity</h3>
-              <p className="mt-2 text-xs text-slate-600 leading-relaxed">
-                Track personal trainer client rosters, morning vs evening shift attendance, and receptionist cashier performance.
+              <h3 className="text-base font-bold text-slate-950">Scalable Architecture</h3>
+              <p className="mt-2 text-xs sm:text-sm text-slate-600 leading-relaxed">
+                Engineered to handle single studios with 50 members or multi-gym enterprise chains with thousands of daily visits.
               </p>
-              <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-slate-700">
-                <span>Active Trainers:</span>
-                <span className="text-blue-600 font-black">2 Certified Staff</span>
+            </div>
+
+            <div className="p-6 rounded-2xl bg-slate-50 border border-slate-200/80">
+              <div className="w-10 h-10 rounded-xl bg-slate-950 text-lime-400 flex items-center justify-center font-bold mb-4">
+                <ShieldCheck className="w-5 h-5" />
               </div>
+              <h3 className="text-base font-bold text-slate-950">Built for Gyms</h3>
+              <p className="mt-2 text-xs sm:text-sm text-slate-600 leading-relaxed">
+                Every screen, button, and report is purpose-crafted around actual fitness center operations and member retention.
+              </p>
             </div>
           </div>
         </div>
       </section>
 
       {/* =========================================================================
-          PRICING STRIP (Included as part of SaaS requirements)
+          12. PRICING SECTION
       ========================================================================= */}
-      <section id="pricing" className="py-20 bg-white border-b border-slate-200/60">
+      <section id="pricing" className="py-20 bg-slate-50/70 border-b border-slate-200/70">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto mb-14">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-600 block mb-2">
-              Transparent Pricing
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-2">
+              Predictable Plans
             </span>
             <h2 className="text-3xl sm:text-4xl font-black text-slate-950 tracking-tight">
-              Predictable plans that scale with your gym
+              Simple pricing that scales with your gym
             </h2>
             <p className="mt-3 text-slate-600 text-sm sm:text-base">
-              No hidden fees, no per-member penalties. Connect your own Hostinger MySQL database anytime.
+              No hidden fees, no per-member penalties. Everything you need to operate smoothly.
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
             {/* Starter */}
-            <div className="p-6 rounded-2xl bg-white border border-slate-200 flex flex-col justify-between shadow-xs">
+            <div className="p-6 rounded-2xl bg-white border border-slate-200 flex flex-col justify-between shadow-2xs">
               <div>
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Starter</span>
                 <div className="mt-2 flex items-baseline gap-1">
                   <span className="text-3xl font-black text-slate-950">₹999</span>
                   <span className="text-xs text-slate-500">/month</span>
                 </div>
-                <p className="mt-2 text-xs text-slate-500">For boutique fitness studios and personal trainers.</p>
+                <p className="mt-2 text-xs text-slate-500">For boutique fitness studios and independent gyms.</p>
                 <ul className="mt-6 space-y-2.5 text-xs text-slate-700">
                   <li className="flex items-center gap-2">✓ Up to 150 Active Members</li>
                   <li className="flex items-center gap-2">✓ QR Turnstile & Attendance</li>
                   <li className="flex items-center gap-2">✓ Payment Receipts & GST</li>
-                  <li className="flex items-center gap-2">✓ 1 Branch Location</li>
+                  <li className="flex items-center gap-2">✓ Digital Member Pass</li>
                 </ul>
               </div>
               <button
-                onClick={() => onEnterApp('dashboard')}
+                onClick={() => setIsGetStartedModalOpen(true)}
                 className="mt-6 w-full py-2.5 rounded-xl border border-slate-300 hover:bg-slate-50 text-slate-900 text-xs font-bold transition"
               >
                 Choose Starter
               </button>
             </div>
 
-            {/* Growth / Popular */}
+            {/* Growth OS (Popular) */}
             <div className="p-6 rounded-2xl bg-slate-950 text-white border-2 border-slate-950 flex flex-col justify-between shadow-xl relative">
-              <span className="absolute -top-3 right-6 bg-lime-400 text-slate-950 font-black text-[10px] uppercase tracking-wider px-2.5 py-0.5 rounded-full">
+              <span className="absolute -top-3 right-6 bg-lime-400 text-slate-950 font-black text-[10px] uppercase tracking-wider px-2.5 py-0.5 rounded-full shadow-2xs">
                 Most Popular
               </span>
               <div>
@@ -1195,38 +1569,38 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterApp, onOpenAddM
                 <p className="mt-2 text-xs text-slate-400">For high-traffic commercial gyms and health clubs.</p>
                 <ul className="mt-6 space-y-2.5 text-xs text-slate-300">
                   <li className="flex items-center gap-2">✓ Unlimited Active Members</li>
-                  <li className="flex items-center gap-2">✓ High-speed USB/Tablet Scanner</li>
+                  <li className="flex items-center gap-2">✓ High-speed USB/Tablet Scanner Mode</li>
                   <li className="flex items-center gap-2">✓ Trainer Shifts & PT Assessment</li>
                   <li className="flex items-center gap-2">✓ Workout & Diet Plan Modules</li>
-                  <li className="flex items-center gap-2">✓ Hostinger MySQL Direct Access</li>
+                  <li className="flex items-center gap-2">✓ Advanced Retention Insights</li>
                 </ul>
               </div>
               <button
-                onClick={() => onEnterApp('dashboard')}
+                onClick={() => setIsGetStartedModalOpen(true)}
                 className="mt-6 w-full py-2.5 rounded-xl bg-lime-400 hover:bg-lime-300 text-slate-950 text-xs font-black transition"
               >
-                Start with Growth
+                Start with Growth OS
               </button>
             </div>
 
-            {/* Pro / Multi-branch */}
-            <div className="p-6 rounded-2xl bg-white border border-slate-200 flex flex-col justify-between shadow-xs">
+            {/* Pro / Multi-Location */}
+            <div className="p-6 rounded-2xl bg-white border border-slate-200 flex flex-col justify-between shadow-2xs">
               <div>
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Pro Enterprise</span>
                 <div className="mt-2 flex items-baseline gap-1">
                   <span className="text-3xl font-black text-slate-950">₹3,999</span>
                   <span className="text-xs text-slate-500">/month</span>
                 </div>
-                <p className="mt-2 text-xs text-slate-500">For multi-gym franchises and fitness chains.</p>
+                <p className="mt-2 text-xs text-slate-500">For multi-location gym chains and franchises.</p>
                 <ul className="mt-6 space-y-2.5 text-xs text-slate-700">
-                  <li className="flex items-center gap-2">✓ Multi-Branch SuperAdmin</li>
-                  <li className="flex items-center gap-2">✓ Dedicated MySQL Schema</li>
-                  <li className="flex items-center gap-2">✓ Custom SMS & WhatsApp API</li>
+                  <li className="flex items-center gap-2">✓ Multi-Branch SuperAdmin Console</li>
+                  <li className="flex items-center gap-2">✓ Cross-Facility Member Access</li>
+                  <li className="flex items-center gap-2">✓ Centralized Financial Reporting</li>
                   <li className="flex items-center gap-2">✓ Priority SLA 24/7 Phone Support</li>
                 </ul>
               </div>
               <button
-                onClick={() => onEnterApp('superadmin')}
+                onClick={() => setIsDemoModalOpen(true)}
                 className="mt-6 w-full py-2.5 rounded-xl border border-slate-300 hover:bg-slate-50 text-slate-900 text-xs font-bold transition"
               >
                 Contact Multi-Gym
@@ -1237,29 +1611,29 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterApp, onOpenAddM
       </section>
 
       {/* =========================================================================
-          10. FINAL CTA
+          13. FINAL CALL TO ACTION
       ========================================================================= */}
-      <section className="py-20 bg-slate-50/70 border-b border-slate-200/60">
+      <section className="py-20 bg-white border-b border-slate-200/70">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="bg-slate-950 text-white rounded-3xl p-8 sm:p-14 text-center relative overflow-hidden border border-slate-800 shadow-2xl">
-            <div className="absolute -right-16 -top-16 w-64 h-64 bg-lime-400/20 rounded-full blur-3xl pointer-events-none" />
-            <div className="absolute -left-16 -bottom-16 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="bg-slate-950 text-white rounded-3xl p-8 sm:p-14 text-center relative overflow-hidden shadow-2xl border border-slate-800">
+            <div className="absolute -right-20 -top-20 w-64 h-64 bg-lime-400/15 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute -left-20 -bottom-20 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
 
             <div className="relative z-10 max-w-2xl mx-auto">
               <span className="text-xs font-bold uppercase tracking-wider text-lime-400 block mb-3">
-                Run Better. Grow Faster.
+                YGOS • Your Gym OS
               </span>
               <h2 className="text-3xl sm:text-5xl font-black tracking-tight leading-tight">
                 Ready to run your gym better?
               </h2>
               <p className="mt-4 text-sm sm:text-base text-slate-300 leading-relaxed font-normal">
-                Start managing your gym with YGOS. Experience the difference of a modern, unified operating system designed specifically for fitness operators.
+                Join forward-thinking gym owners who manage members, attendance, billing, and trainers with one unified operating system.
               </p>
 
               <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
                 <button
-                  onClick={() => onEnterApp('dashboard')}
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-xl bg-lime-400 hover:bg-lime-300 text-slate-950 font-black text-sm transition shadow-lg"
+                  onClick={() => setIsGetStartedModalOpen(true)}
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl bg-lime-400 hover:bg-lime-300 text-slate-950 font-black text-sm transition shadow-lg"
                 >
                   <span>Get Started</span>
                   <ArrowRight className="w-4 h-4" />
@@ -1267,15 +1641,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterApp, onOpenAddM
 
                 <button
                   onClick={() => setIsDemoModalOpen(true)}
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-sm font-semibold border border-slate-800 transition"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-sm font-semibold border border-slate-800 transition"
                 >
                   <Phone className="w-4 h-4 text-slate-400" />
-                  <span>Talk to Product Expert</span>
+                  <span>Talk to Product Specialist</span>
                 </button>
               </div>
 
-              <div className="mt-6 text-xs text-slate-400">
-                Fast 2-minute setup • Connects to Hostinger phpMyAdmin in 1 click
+              <div className="mt-6 text-xs font-bold tracking-wider uppercase text-slate-400">
+                Run Better. Grow Faster.
               </div>
             </div>
           </div>
@@ -1283,28 +1657,28 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterApp, onOpenAddM
       </section>
 
       {/* =========================================================================
-          11. FOOTER
+          14. FOOTER
       ========================================================================= */}
-      <footer className="bg-white text-slate-900 pt-14 pb-10 border-t border-slate-200">
+      <footer className="bg-white text-slate-900 pt-14 pb-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-2 md:grid-cols-5 gap-8 pb-12 border-b border-slate-200">
             {/* Brand column */}
             <div className="col-span-2 space-y-4">
-              <YgosLogo size="md" />
-              <p className="text-xs text-slate-500 font-semibold tracking-wide">
+              <YgosLogo size="md" showParentBrand={false} />
+              <p className="text-xs font-bold text-slate-900 tracking-wide">
                 Run Better. Grow Faster.
               </p>
               <p className="text-xs text-slate-500 max-w-sm leading-relaxed">
                 YGOS is the modern operating system for gyms and fitness centers. Manage members, attendance, billing, trainers, and workflows under one unified ecosystem.
               </p>
               <div className="pt-2 text-[11px] text-slate-400 font-medium">
-                Part of the <span className="font-bold text-slate-700">YBGP</span> (Your Business Growth Platform) family.
+                A <span className="font-bold text-slate-700">YBGP</span> product • Your Business Growth Platform.
               </div>
             </div>
 
             {/* Column 1: Product */}
             <div className="space-y-3">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900">Product</h4>
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-950">Product</h4>
               <ul className="space-y-2 text-xs text-slate-500">
                 <li>
                   <button onClick={() => onEnterApp('dashboard')} className="hover:text-slate-950 transition">
@@ -1336,45 +1710,58 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterApp, onOpenAddM
 
             {/* Column 2: Solutions */}
             <div className="space-y-3">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900">Solutions</h4>
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-950">Solutions</h4>
               <ul className="space-y-2 text-xs text-slate-500">
                 <li>
-                  <button onClick={() => onEnterApp('trainers')} className="hover:text-slate-950 transition">
+                  <button onClick={() => handleRoleSignIn('gym_owner')} className="hover:text-slate-950 transition">
+                    Gym Owners
+                  </button>
+                </li>
+                <li>
+                  <button onClick={() => handleRoleSignIn('staff')} className="hover:text-slate-950 transition">
+                    Front Desk / Staff
+                  </button>
+                </li>
+                <li>
+                  <button onClick={() => handleRoleSignIn('trainer')} className="hover:text-slate-950 transition">
                     Personal Trainers
                   </button>
                 </li>
                 <li>
-                  <button onClick={() => onEnterApp('workouts')} className="hover:text-slate-950 transition">
-                    Workouts & Diet Plans
-                  </button>
-                </li>
-                <li>
                   <button onClick={() => onEnterApp('superadmin')} className="hover:text-slate-950 transition">
-                    Multi-Gym Franchises
-                  </button>
-                </li>
-                <li>
-                  <button onClick={() => onEnterApp('settings')} className="hover:text-slate-950 transition">
-                    Hostinger MySQL Integration
+                    Multi-Gym Chains
                   </button>
                 </li>
               </ul>
             </div>
 
-            {/* Column 3: Company & Support */}
+            {/* Column 3: Company */}
             <div className="space-y-3">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900">Company</h4>
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-950">Company</h4>
               <ul className="space-y-2 text-xs text-slate-500">
-                <li><a href="#product" className="hover:text-slate-950 transition">About YGOS</a></li>
-                <li><a href="#features" className="hover:text-slate-950 transition">YBGP Ecosystem</a></li>
-                <li><a href="#pricing" className="hover:text-slate-950 transition">Pricing Plans</a></li>
+                <li>
+                  <a href="#product" className="hover:text-slate-950 transition">
+                    About YGOS
+                  </a>
+                </li>
+                <li>
+                  <a href="#features" className="hover:text-slate-950 transition">
+                    Features
+                  </a>
+                </li>
+                <li>
+                  <a href="#pricing" className="hover:text-slate-950 transition">
+                    Pricing Plans
+                  </a>
+                </li>
                 <li>
                   <button onClick={() => setIsDemoModalOpen(true)} className="hover:text-slate-950 transition">
-                    Contact & Demo
+                    Book a Demo
                   </button>
                 </li>
-                <li><span className="text-slate-400">Privacy Policy</span></li>
-                <li><span className="text-slate-400">Terms of Service</span></li>
+                <li>
+                  <span className="text-slate-400">Privacy & Terms</span>
+                </li>
               </ul>
             </div>
           </div>
@@ -1383,11 +1770,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterApp, onOpenAddM
             <p>© {new Date().getFullYear()} YGOS (Your Gym OS). A product by YBGP. All rights reserved.</p>
             <div className="flex items-center gap-3">
               <button
-                onClick={() => onEnterApp('settings')}
-                className="text-slate-600 hover:text-slate-900 transition font-medium flex items-center gap-1.5"
+                onClick={() => setIsSignInModalOpen(true)}
+                className="text-slate-600 hover:text-slate-950 transition font-semibold"
               >
-                <Server className="w-3.5 h-3.5 text-blue-600" />
-                <span>Hostinger MySQL Diagnostics</span>
+                Sign In to Platform
               </button>
             </div>
           </div>
@@ -1395,7 +1781,227 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterApp, onOpenAddM
       </footer>
 
       {/* =========================================================================
-          BOOK A DEMO MODAL
+          MODAL 1: SIGN IN MODAL
+      ========================================================================= */}
+      {isSignInModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in">
+          <div className="bg-white rounded-2xl border border-slate-200 max-w-md w-full p-6 shadow-2xl relative">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <YgosLogo size="sm" showSubtitle={false} showParentBrand={false} />
+                <span className="text-sm font-bold text-slate-900">Sign in to YGOS</span>
+              </div>
+              <button
+                onClick={() => setIsSignInModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 text-lg font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="mt-4 space-y-4">
+              <div>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block mb-2">
+                  Quick Access by Workspace Role
+                </span>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => handleRoleSignIn('gym_owner')}
+                    className="p-2.5 rounded-xl border border-slate-200 hover:border-slate-950 bg-slate-50 hover:bg-slate-100 text-left transition"
+                  >
+                    <div className="text-xs font-bold text-slate-900">Gym Owner</div>
+                    <div className="text-[10px] text-slate-500">Full control & financials</div>
+                  </button>
+                  <button
+                    onClick={() => handleRoleSignIn('staff')}
+                    className="p-2.5 rounded-xl border border-slate-200 hover:border-slate-950 bg-slate-50 hover:bg-slate-100 text-left transition"
+                  >
+                    <div className="text-xs font-bold text-slate-900">Front Desk</div>
+                    <div className="text-[10px] text-slate-500">Scanner & cashier</div>
+                  </button>
+                  <button
+                    onClick={() => handleRoleSignIn('trainer')}
+                    className="p-2.5 rounded-xl border border-slate-200 hover:border-slate-950 bg-slate-50 hover:bg-slate-100 text-left transition"
+                  >
+                    <div className="text-xs font-bold text-slate-900">Trainer</div>
+                    <div className="text-[10px] text-slate-500">Workouts & clients</div>
+                  </button>
+                  <button
+                    onClick={() => handleRoleSignIn('member')}
+                    className="p-2.5 rounded-xl border border-slate-200 hover:border-slate-950 bg-slate-50 hover:bg-slate-100 text-left transition"
+                  >
+                    <div className="text-xs font-bold text-slate-900">Gym Member</div>
+                    <div className="text-[10px] text-slate-500">Digital pass & plans</div>
+                  </button>
+                </div>
+              </div>
+
+              <div className="relative flex py-1 items-center">
+                <div className="grow border-t border-slate-200" />
+                <span className="shrink mx-3 text-[10px] uppercase font-bold text-slate-400">or credentials</span>
+                <div className="grow border-t border-slate-200" />
+              </div>
+
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  handleRoleSignIn('gym_owner');
+                }}
+                className="space-y-3"
+              >
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Email</label>
+                  <input
+                    type="email"
+                    value={signInEmail}
+                    onChange={(e) => setSignInEmail(e.target.value)}
+                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-slate-950"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Password</label>
+                  <input
+                    type="password"
+                    value={signInPassword}
+                    onChange={(e) => setSignInPassword(e.target.value)}
+                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-slate-950"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  className="w-full py-2.5 rounded-xl bg-slate-950 hover:bg-slate-900 text-white font-bold text-xs transition"
+                >
+                  Sign In
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================================
+          MODAL 2: GET STARTED / ONBOARDING MODAL
+      ========================================================================= */}
+      {isGetStartedModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in">
+          <div className="bg-white rounded-2xl border border-slate-200 max-w-md w-full p-6 shadow-2xl relative">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <YgosLogo size="sm" showSubtitle={false} showParentBrand={false} />
+                <span className="text-sm font-bold text-slate-900">Start with YGOS</span>
+              </div>
+              <button
+                onClick={() => setIsGetStartedModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 text-lg font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            {getStartedSuccess ? (
+              <div className="py-8 text-center space-y-3">
+                <div className="w-12 h-12 bg-lime-100 text-lime-800 rounded-full flex items-center justify-center mx-auto">
+                  <Check className="w-6 h-6" />
+                </div>
+                <h4 className="text-base font-bold text-slate-900">Workspace Configured!</h4>
+                <p className="text-xs text-slate-600">Launching your YGOS Control Center...</p>
+              </div>
+            ) : (
+              <form onSubmit={handleCreateGym} className="mt-4 space-y-3.5">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Gym Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={getStartedData.gymName}
+                    onChange={(e) => setGetStartedData({ ...getStartedData, gymName: e.target.value })}
+                    placeholder="e.g. IronVault Fitness"
+                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-slate-950"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-2.5">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">Owner Name</label>
+                    <input
+                      type="text"
+                      required
+                      value={getStartedData.ownerName}
+                      onChange={(e) => setGetStartedData({ ...getStartedData, ownerName: e.target.value })}
+                      placeholder="Vikram Sharma"
+                      className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-slate-950"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">City / Location</label>
+                    <input
+                      type="text"
+                      required
+                      value={getStartedData.city}
+                      onChange={(e) => setGetStartedData({ ...getStartedData, city: e.target.value })}
+                      placeholder="Mumbai, MH"
+                      className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-slate-950"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2.5">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">Phone Number</label>
+                    <input
+                      type="tel"
+                      required
+                      value={getStartedData.phone}
+                      onChange={(e) => setGetStartedData({ ...getStartedData, phone: e.target.value })}
+                      placeholder="+91 98765 43210"
+                      className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-slate-950"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">Currency Symbol</label>
+                    <select
+                      value={getStartedData.currencySymbol}
+                      onChange={(e) => setGetStartedData({ ...getStartedData, currencySymbol: e.target.value })}
+                      className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-slate-950 bg-white"
+                    >
+                      <option value="₹">₹ (INR)</option>
+                      <option value="$">$ (USD)</option>
+                      <option value="€">€ (EUR)</option>
+                      <option value="£">£ (GBP)</option>
+                      <option value="AED">AED (Dirham)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Selected Plan</label>
+                  <select
+                    value={getStartedData.planTier}
+                    onChange={(e) => setGetStartedData({ ...getStartedData, planTier: e.target.value })}
+                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-slate-950 bg-white"
+                  >
+                    <option value="Starter">Starter (Single Studio - ₹999/mo)</option>
+                    <option value="Growth OS">Growth OS (Unlimited Members - ₹1,999/mo)</option>
+                    <option value="Pro Enterprise">Pro Enterprise (Multi-Gym Chain - ₹3,999/mo)</option>
+                  </select>
+                </div>
+
+                <div className="pt-2">
+                  <button
+                    type="submit"
+                    className="w-full py-2.5 rounded-xl bg-slate-950 hover:bg-slate-900 text-white font-bold text-xs shadow-md transition"
+                  >
+                    Launch Your Gym OS
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================================
+          MODAL 3: BOOK A DEMO MODAL
       ========================================================================= */}
       {isDemoModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in">
@@ -1403,7 +2009,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterApp, onOpenAddM
             <div className="flex items-center justify-between pb-4 border-b border-slate-100">
               <div className="flex items-center gap-2">
                 <YgosLogo size="sm" showSubtitle={false} showParentBrand={false} />
-                <span className="text-sm font-bold text-slate-900">Book a Live YGOS Demo</span>
+                <span className="text-sm font-bold text-slate-900">Book a 1-on-1 Product Walkthrough</span>
               </div>
               <button
                 onClick={() => setIsDemoModalOpen(false)}
@@ -1414,14 +2020,26 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterApp, onOpenAddM
             </div>
 
             {demoFormSubmitted ? (
-              <div className="py-8 text-center space-y-3">
-                <div className="w-12 h-12 bg-lime-100 text-lime-700 rounded-full flex items-center justify-center mx-auto">
+              <div className="py-6 text-center space-y-3">
+                <div className="w-12 h-12 bg-lime-100 text-lime-800 rounded-full flex items-center justify-center mx-auto">
                   <Check className="w-6 h-6" />
                 </div>
-                <h4 className="text-base font-bold text-slate-900">Demo Scheduled!</h4>
-                <p className="text-xs text-slate-600">
-                  Launching your sandbox environment now with preloaded members, check-ins, and payments...
+                <h4 className="text-base font-bold text-slate-950">Walkthrough Request Received!</h4>
+                <p className="text-xs text-slate-600 leading-relaxed max-w-xs mx-auto">
+                  Our fitness software specialist will connect with you via phone & WhatsApp within 2 hours.
                 </p>
+                <div className="pt-3 flex flex-col gap-2">
+                  <button
+                    onClick={() => {
+                      setIsDemoModalOpen(false);
+                      setDemoFormSubmitted(false);
+                      onEnterApp('dashboard');
+                    }}
+                    className="w-full py-2.5 rounded-xl bg-slate-950 hover:bg-slate-900 text-white font-bold text-xs transition"
+                  >
+                    Explore Live Interactive Demo Sandbox
+                  </button>
+                </div>
               </div>
             ) : (
               <form onSubmit={handleDemoSubmit} className="mt-4 space-y-3.5">
@@ -1438,7 +2056,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterApp, onOpenAddM
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Gym / Fitness Center Name</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Gym Name</label>
                   <input
                     type="text"
                     required
@@ -1475,15 +2093,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterApp, onOpenAddM
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Active Member Count</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Current Active Members</label>
                   <select
                     value={demoFormData.memberCount}
                     onChange={(e) => setDemoFormData({ ...demoFormData, memberCount: e.target.value })}
                     className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-slate-950 bg-white"
                   >
-                    <option value="1-100">1 - 100 Members (Starter)</option>
-                    <option value="100-300">100 - 300 Members (Growth)</option>
-                    <option value="300-1000">300 - 1,000 Members (High-Traffic)</option>
+                    <option value="1-100">1 - 100 Members (Single Studio)</option>
+                    <option value="100-300">100 - 300 Members (Growth Club)</option>
+                    <option value="300-1000">300 - 1,000 Members (High-Traffic Gym)</option>
                     <option value="1000+">1,000+ Members (Multi-Branch Chain)</option>
                   </select>
                 </div>
@@ -1491,9 +2109,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterApp, onOpenAddM
                 <div className="pt-2">
                   <button
                     type="submit"
-                    className="w-full py-2.5 rounded-xl bg-slate-950 hover:bg-slate-900 text-white font-bold text-xs transition shadow-xs"
+                    className="w-full py-2.5 rounded-xl bg-slate-950 hover:bg-slate-900 text-white font-bold text-xs transition shadow-sm"
                   >
-                    Confirm & Launch Interactive Sandbox
+                    Confirm Walkthrough Request
                   </button>
                 </div>
               </form>
