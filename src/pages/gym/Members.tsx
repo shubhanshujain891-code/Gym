@@ -71,9 +71,9 @@ export const Members: React.FC<MembersProps> = ({
         </div>
         <button
           onClick={onOpenAddMember}
-          className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl transition shadow-xs self-start sm:self-auto"
+          className="flex items-center gap-2 px-4 py-2 bg-slate-950 hover:bg-slate-900 text-white text-xs font-bold rounded-xl transition shadow-xs self-start sm:self-auto border border-slate-800"
         >
-          <UserPlus className="w-4 h-4" />
+          <UserPlus className="w-4 h-4 text-lime-400" />
           <span>New Member</span>
         </button>
       </div>
@@ -87,7 +87,7 @@ export const Members: React.FC<MembersProps> = ({
             placeholder="Search by name, phone or code..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 bg-slate-50 focus:bg-white transition"
+            className="w-full pl-9 pr-3 py-2 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-950 bg-slate-50 focus:bg-white transition"
           />
         </div>
 

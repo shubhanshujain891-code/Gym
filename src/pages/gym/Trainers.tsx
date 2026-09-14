@@ -48,9 +48,9 @@ export const Trainers: React.FC = () => {
         </div>
         <button
           onClick={() => setIsAddOpen(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl transition shadow-xs self-start sm:self-auto"
+          className="flex items-center gap-2 px-4 py-2 bg-slate-950 hover:bg-slate-900 text-white text-xs font-bold rounded-xl transition shadow-xs self-start sm:self-auto border border-slate-800"
         >
-          <Plus className="w-4 h-4" />
+          <Plus className="w-4 h-4 text-lime-400" />
           <span>Add Trainer</span>
         </button>
       </div>

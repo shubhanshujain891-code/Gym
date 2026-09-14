@@ -208,12 +208,12 @@ export async function startServer() {
     const distPath = path.join(process.cwd(), 'dist');
     if (fs.existsSync(distPath)) {
       app.use(express.static(distPath));
-      app.get('*', (_req, res) => {
+      app.get('*all', (_req, res) => {
         res.sendFile(path.join(distPath, 'index.html'));
       });
     } else {
       // Fallback if dist not yet built
-      app.get('*', (_req, res) => {
+      app.get('*all', (_req, res) => {
         res.send('<html><body><h1>Application is starting up...</h1><p>Please refresh in a moment.</p></body></html>');
       });
     }

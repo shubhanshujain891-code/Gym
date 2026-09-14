@@ -34,7 +34,7 @@ export const MemberPortal: React.FC = () => {
       {/* Welcome Banner */}
       <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4">
         <div className="flex items-center gap-4">
-          <div className="w-14 h-14 rounded-2xl bg-emerald-600 text-white font-black text-xl flex items-center justify-center shadow-xs">
+          <div className="w-14 h-14 rounded-2xl bg-slate-950 text-lime-400 font-black text-xl flex items-center justify-center shadow-xs border border-slate-800">
             {member.firstName.charAt(0)}
           </div>
           <div>
@@ -52,7 +52,7 @@ export const MemberPortal: React.FC = () => {
 
         <div className="text-right bg-slate-50 px-4 py-2.5 rounded-xl border border-slate-200 self-stretch sm:self-auto text-center sm:text-right">
           <span className="text-[10px] uppercase font-bold text-slate-400 block">Validity</span>
-          <span className={`text-base font-black ${daysLeft <= 7 ? 'text-rose-600' : 'text-emerald-700'}`}>
+          <span className={`text-base font-black ${daysLeft <= 7 ? 'text-rose-600' : 'text-slate-950'}`}>
             {daysLeft > 0 ? `${daysLeft} Days Remaining` : 'Membership Expired'}
           </span>
           <span className="text-[11px] text-slate-400 block mt-0.5">Ends on {formatDate(member.membershipEndDate)}</span>

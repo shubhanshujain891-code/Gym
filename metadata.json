@@ -1,6 +1,6 @@
 {
-  "name": "FitManage - Multi-Gym SaaS",
-  "description": "Multi-tenant Gym Management SaaS for gym owners, staff, trainers, members and platform super admins.",
+  "name": "YGOS - Your Gym OS",
+  "description": "Your Gym OS — Run Better. Grow Faster. Manage members, attendance, payments, trainers and everyday gym operations from one powerful platform by YBGP.",
   "requestFramePermissions": ["camera"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

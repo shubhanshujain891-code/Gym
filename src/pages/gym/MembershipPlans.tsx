@@ -49,9 +49,9 @@ export const MembershipPlans: React.FC = () => {
         </div>
         <button
           onClick={() => setIsAddOpen(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl transition shadow-xs self-start sm:self-auto"
+          className="flex items-center gap-2 px-4 py-2 bg-slate-950 hover:bg-slate-900 text-white text-xs font-bold rounded-xl transition shadow-xs self-start sm:self-auto border border-slate-800"
         >
-          <Plus className="w-4 h-4" />
+          <Plus className="w-4 h-4 text-lime-400" />
           <span>Add New Package</span>
         </button>
       </div>
@@ -63,13 +63,13 @@ export const MembershipPlans: React.FC = () => {
             key={plan.id}
             className={`bg-white rounded-2xl border p-6 flex flex-col justify-between transition relative shadow-xs ${
               plan.popular
-                ? 'border-emerald-500 ring-2 ring-emerald-500/20'
+                ? 'border-slate-950 ring-2 ring-slate-950/10'
                 : 'border-slate-200 hover:border-slate-300'
             }`}
           >
             {plan.popular && (
-              <span className="absolute -top-3 right-6 bg-emerald-600 text-white px-3 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider flex items-center gap-1 shadow-xs">
-                <Star className="w-3 h-3 fill-current" /> Most Popular
+              <span className="absolute -top-3 right-6 bg-lime-400 text-slate-950 px-3 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider flex items-center gap-1 shadow-2xs">
+                <Star className="w-3 h-3 fill-slate-950" /> Most Popular
               </span>
             )}
 

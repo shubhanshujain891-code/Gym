@@ -6,7 +6,7 @@ interface StatCardProps {
   value: string | number;
   subtitle?: string;
   icon: LucideIcon;
-  color?: 'emerald' | 'blue' | 'amber' | 'purple' | 'rose' | 'slate';
+  color?: 'lime' | 'emerald' | 'blue' | 'amber' | 'purple' | 'rose' | 'slate';
   trend?: { value: number; isPositive: boolean };
 }
 
@@ -15,16 +15,17 @@ export const StatCard: React.FC<StatCardProps> = ({
   value,
   subtitle,
   icon: Icon,
-  color = 'blue',
+  color = 'lime',
   trend,
 }) => {
   const colorMap = {
-    emerald: 'bg-emerald-50 text-emerald-600',
-    blue: 'bg-blue-50 text-blue-600',
-    amber: 'bg-amber-50 text-amber-600',
-    purple: 'bg-purple-50 text-purple-600',
-    rose: 'bg-rose-50 text-rose-600',
-    slate: 'bg-slate-100 text-slate-600',
+    lime: 'bg-lime-50 text-lime-700 border border-lime-200/80',
+    emerald: 'bg-emerald-50 text-emerald-700 border border-emerald-200/80',
+    blue: 'bg-blue-50 text-blue-700 border border-blue-200/80',
+    amber: 'bg-amber-50 text-amber-700 border border-amber-200/80',
+    purple: 'bg-purple-50 text-purple-700 border border-purple-200/80',
+    rose: 'bg-rose-50 text-rose-700 border border-rose-200/80',
+    slate: 'bg-slate-100 text-slate-700 border border-slate-200/80',
   };
 
   return (

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useStore } from './hooks/useStore';
 import { Header } from './components/layout/Header';
 import { Sidebar } from './components/layout/Sidebars';
+import { LandingPage } from './pages/public/LandingPage';
 import { Dashboard } from './pages/gym/Dashboard';
 import { Members } from './pages/gym/Members';
 import { AddMemberModal } from './pages/gym/AddMemberModal';
@@ -22,17 +23,15 @@ export function App() {
   const currentUser = store.getCurrentUser();
   const gym = store.getActiveGym();
 
-  const [currentView, setCurrentView] = useState<string>('dashboard');
+  const [currentView, setCurrentView] = useState<string>('website');
   const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
   const [memberForPayment, setMemberForPayment] = useState<Member | null>(null);
   const [receiptPayment, setReceiptPayment] = useState<PaymentRecord | null>(null);
 
-  // Switch view if current user is a Member
+  // Switch view if current user is a Member and not on public website
   useEffect(() => {
-    if (currentUser.role === 'member') {
+    if (currentUser.role === 'member' && currentView !== 'website') {
       setCurrentView('portal');
-    } else if (currentView === 'portal') {
-      setCurrentView('dashboard');
     }
   }, [currentUser.role]);
 
@@ -43,6 +42,31 @@ export function App() {
   const handleMemberPaymentSuccess = (payment: PaymentRecord) => {
     setReceiptPayment(payment);
   };
+
+  // If user is viewing the public-facing website
+  if (currentView === 'website') {
+    return (
+      <div className="min-h-screen bg-white">
+        <LandingPage
+          onEnterApp={(targetView) => setCurrentView(targetView || 'dashboard')}
+          onOpenAddMember={handleOpenAddMember}
+        />
+
+        {/* Global Add Member Modal (can be opened from CTA) */}
+        <AddMemberModal
+          isOpen={isAddMemberOpen}
+          onClose={() => setIsAddMemberOpen(false)}
+          onSuccess={(newMember) => {
+            if (newMember.totalPaid > 0) {
+              const lastPayment = store.getPayments().find((p) => p.memberId === newMember.id);
+              if (lastPayment) setReceiptPayment(lastPayment);
+            }
+            setCurrentView('members');
+          }}
+        />
+      </div>
+    );
+  }
 
   const renderContent = () => {
     switch (currentView) {
@@ -96,7 +120,7 @@ export function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-100 flex flex-col font-sans text-slate-900 antialiased selection:bg-emerald-500 selection:text-white">
+    <div className="min-h-screen bg-slate-50 flex flex-col font-sans text-slate-900 antialiased selection:bg-lime-400 selection:text-slate-950">
       {/* Top Application Header */}
       <Header
         onOpenAddMember={handleOpenAddMember}
