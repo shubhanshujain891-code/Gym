@@ -1,0 +1,6 @@
+{
+  "name": "FitManage - Multi-Gym SaaS",
+  "description": "Multi-tenant Gym Management SaaS for gym owners, staff, trainers, members and platform super admins.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
