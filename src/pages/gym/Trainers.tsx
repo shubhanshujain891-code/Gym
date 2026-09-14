@@ -1,418 +1,202 @@
 import React, { useState } from 'react';
 import { useStore } from '../../hooks/useStore';
-import { Trainer, Member } from '../../types';
+import { Trainer } from '../../types';
 import { Modal } from '../../components/common/Modal';
-import { ConfirmDialog } from '../../components/common/ConfirmDialog';
-import { formatDate } from '../../utils/formatters';
-import { useToast } from '../../components/common/Toast';
-import {
-  Dumbbell,
-  Plus,
-  Edit3,
-  Trash2,
-  Users,
-  Phone,
-  Mail,
-  Calendar,
-  Clock,
-  UserCheck,
-  ChevronRight,
-  TrendingUp,
-} from 'lucide-react';
+import { UserCheck, Plus, Star, Phone, Mail, Clock, Trash2 } from 'lucide-react';
 
-interface TrainersPageProps {
-  onSelectMember: (memberId: string) => void;
-}
-
-export function Trainers({ onSelectMember }: TrainersPageProps) {
-  const { store } = useStore();
-  const { success, error } = useToast();
-
+export const Trainers: React.FC = () => {
+  const store = useStore();
   const trainers = store.getTrainers();
-  const members = store.getMembers();
 
-  const [showModal, setShowModal] = useState(false);
-  const [editingTrainer, setEditingTrainer] = useState<Trainer | null>(null);
-  const [selectedTrainerDetail, setSelectedTrainerDetail] = useState<Trainer | null>(null);
-  const [deleteTrainerId, setDeleteTrainerId] = useState<string | null>(null);
-
-  // Form fields
+  const [isAddOpen, setIsAddOpen] = useState(false);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
-  const [specialization, setSpecialization] = useState('Strength & Conditioning');
-  const [joiningDate, setJoiningDate] = useState(new Date().toISOString().split('T')[0]);
-  const [shiftTiming, setShiftTiming] = useState('06:00 AM - 02:00 PM');
-  const [notes, setNotes] = useState('');
+  const [specialization, setSpecialization] = useState('CrossFit & Hypertrophy');
+  const [shift, setShift] = useState<'morning' | 'evening' | 'full_day'>('morning');
+  const [experienceYears, setExperienceYears] = useState(3);
 
-  const openCreateModal = () => {
-    setEditingTrainer(null);
+  const handleAdd = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim() || !phone.trim()) return;
+
+    store.addTrainer({
+      name: name.trim(),
+      phone: phone.trim(),
+      email: email.trim() || undefined,
+      specialization: specialization.trim(),
+      shift,
+      experienceYears,
+      rating: 5.0,
+      status: 'active',
+    });
+
+    setIsAddOpen(false);
     setName('');
     setPhone('');
-    setEmail('');
-    setSpecialization('Strength & Conditioning');
-    setJoiningDate(new Date().toISOString().split('T')[0]);
-    setShiftTiming('06:00 AM - 02:00 PM');
-    setNotes('');
-    setShowModal(true);
-  };
-
-  const openEditModal = (t: Trainer) => {
-    setEditingTrainer(t);
-    setName(t.name);
-    setPhone(t.phone);
-    setEmail(t.email);
-    setSpecialization(t.specialization);
-    setJoiningDate(t.joiningDate);
-    setShiftTiming(t.shiftTiming || '06:00 AM - 02:00 PM');
-    setNotes(t.notes || '');
-    setShowModal(true);
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name.trim()) {
-      error('Error', 'Trainer name is required.');
-      return;
-    }
-
-    try {
-      if (editingTrainer) {
-        store.updateTrainer(editingTrainer.id, {
-          name,
-          phone,
-          email,
-          specialization,
-          joiningDate,
-          shiftTiming,
-          notes,
-        });
-        success('Trainer Updated', `${name}'s profile has been updated.`);
-      } else {
-        store.createTrainer({
-          name,
-          phone,
-          email: email || `${name.toLowerCase().replace(/\s+/g, '.')}@example.com`,
-          specialization,
-          joiningDate,
-          shiftTiming,
-          notes,
-          status: 'active',
-        });
-        success('Trainer Added', `${name} joined the fitness staff.`);
-      }
-      setShowModal(false);
-    } catch (err: any) {
-      error('Failed to save', err.message);
-    }
-  };
-
-  const handleDelete = () => {
-    if (!deleteTrainerId) return;
-    store.deleteTrainer(deleteTrainerId);
-    success('Trainer Removed', 'Staff trainer record archived.');
-    setDeleteTrainerId(null);
   };
 
   return (
-    <div className="space-y-6 pb-12">
+    <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
         <div>
-          <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">
-            Personal Trainers & Coaches
-          </h1>
+          <h1 className="text-xl font-extrabold text-slate-900 tracking-tight">Fitness Trainers & Coaches</h1>
           <p className="text-xs text-slate-500 mt-0.5">
-            Manage fitness trainers, client member rosters, specialties, and schedules.
+            Manage your personal trainers, certifications, client rosters, and schedules
           </p>
         </div>
-
         <button
-          type="button"
-          onClick={openCreateModal}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-colors shadow-xs"
+          onClick={() => setIsAddOpen(true)}
+          className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl transition shadow-xs self-start sm:self-auto"
         >
           <Plus className="w-4 h-4" />
-          <span>+ Add Trainer</span>
+          <span>Add Trainer</span>
         </button>
       </div>
 
-      {/* Trainers Grid - Section 22 */}
+      {/* Trainers Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {trainers.map(trainer => {
-          const assignedMembers = members.filter(m => m.primaryTrainerId === trainer.id);
-
-          return (
-            <div
-              key={trainer.id}
-              className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 p-6 flex flex-col justify-between shadow-2xs transition-all hover:border-emerald-500/40"
-            >
-              <div>
-                <div className="flex items-start justify-between gap-4 mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-bold text-lg flex items-center justify-center shrink-0 overflow-hidden">
-                      {trainer.avatarUrl ? (
-                        <img src={trainer.avatarUrl} alt="" className="w-full h-full object-cover" />
-                      ) : (
-                        trainer.name[0]
-                      )}
-                    </div>
-                    <div>
-                      <h3 className="font-extrabold text-slate-900 dark:text-white text-base">
-                        {trainer.name}
-                      </h3>
-                      <span className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold block">
-                        {trainer.specialization}
-                      </span>
-                    </div>
+        {trainers.map((t) => (
+          <div
+            key={t.id}
+            className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs hover:border-slate-300 transition flex flex-col justify-between"
+          >
+            <div>
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-xl bg-emerald-100 text-emerald-800 font-bold flex items-center justify-center text-lg">
+                    {t.name.charAt(0)}
                   </div>
-
-                  <span
-                    className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${
-                      trainer.status === 'active'
-                        ? 'bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300'
-                        : 'bg-slate-100 text-slate-500'
-                    }`}
-                  >
-                    {trainer.status}
-                  </span>
-                </div>
-
-                {/* Details */}
-                <div className="space-y-2 py-3 border-y border-slate-100 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-300">
-                  <div className="flex items-center gap-2">
-                    <Phone className="w-3.5 h-3.5 text-slate-400" />
-                    <span className="font-mono">{trainer.phone}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Clock className="w-3.5 h-3.5 text-slate-400" />
-                    <span>{trainer.shiftTiming || 'Morning / Evening Split'}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                    <span>Joined: {formatDate(trainer.joiningDate)}</span>
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900">{t.name}</h3>
+                    <p className="text-xs text-emerald-600 font-medium">{t.specialization}</p>
                   </div>
                 </div>
-
-                {/* Assigned Member Count Badge */}
-                <div
-                  onClick={() => setSelectedTrainerDetail(trainer)}
-                  className="mt-4 p-3 rounded-2xl bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-100 dark:border-emerald-900/40 flex items-center justify-between cursor-pointer hover:bg-emerald-100/60 transition-colors"
-                >
-                  <div className="flex items-center gap-2.5">
-                    <Users className="w-4 h-4 text-emerald-600" />
-                    <span className="text-xs font-bold text-slate-900 dark:text-white">
-                      {assignedMembers.length} Assigned Clients
-                    </span>
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-emerald-600" />
+                <div className="flex items-center gap-1 bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full text-xs font-bold border border-amber-200">
+                  <Star className="w-3 h-3 fill-current" />
+                  <span>{t.rating || '5.0'}</span>
                 </div>
               </div>
 
-              {/* Actions Footer */}
-              <div className="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                <button
-                  type="button"
-                  onClick={() => openEditModal(trainer)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 transition-colors"
-                >
-                  <Edit3 className="w-3.5 h-3.5" />
-                  <span>Edit Profile</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setDeleteTrainerId(trainer.id)}
-                  className="p-2 text-slate-400 hover:text-rose-600 transition-colors"
-                  title="Remove Trainer"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Trainer Assigned Client List Drawer / Modal - Section 24 */}
-      {selectedTrainerDetail && (
-        <Modal
-          isOpen={true}
-          onClose={() => setSelectedTrainerDetail(null)}
-          title={`${selectedTrainerDetail.name}'s Client Roster`}
-          maxWidth="lg"
-        >
-          <div className="space-y-4">
-            <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800 flex items-center justify-between text-xs">
-              <div>
-                <span className="text-slate-400 uppercase text-[10px] font-bold block">Specialty</span>
-                <span className="font-bold text-slate-900 dark:text-white">{selectedTrainerDetail.specialization}</span>
-              </div>
-              <div className="text-right">
-                <span className="text-slate-400 uppercase text-[10px] font-bold block">Total Active Clients</span>
-                <span className="font-bold text-emerald-600">
-                  {members.filter(m => m.primaryTrainerId === selectedTrainerDetail.id).length} Members
-                </span>
+              <div className="space-y-2 text-xs text-slate-600 pt-2 border-t border-slate-100">
+                <div className="flex items-center gap-2">
+                  <Phone className="w-3.5 h-3.5 text-slate-400" />
+                  <span>{t.phone}</span>
+                </div>
+                {t.email && (
+                  <div className="flex items-center gap-2">
+                    <Mail className="w-3.5 h-3.5 text-slate-400" />
+                    <span>{t.email}</span>
+                  </div>
+                )}
+                <div className="flex items-center gap-2">
+                  <Clock className="w-3.5 h-3.5 text-slate-400" />
+                  <span className="capitalize">{t.shift.replace('_', ' ')} Shift • {t.experienceYears} Yrs Exp</span>
+                </div>
               </div>
             </div>
 
-            <div className="divide-y divide-slate-100 dark:divide-slate-800 max-h-80 overflow-y-auto">
-              {members
-                .filter(m => m.primaryTrainerId === selectedTrainerDetail.id)
-                .map(m => (
-                  <div
-                    key={m.id}
-                    onClick={() => {
-                      setSelectedTrainerDetail(null);
-                      onSelectMember(m.id);
-                    }}
-                    className="py-3 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800 px-2 rounded-xl cursor-pointer transition-colors"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-emerald-600/10 text-emerald-600 font-bold flex items-center justify-center text-xs">
-                        {m.firstName[0]}
-                      </div>
-                      <div>
-                        <p className="font-bold text-xs text-slate-900 dark:text-white">
-                          {m.firstName} {m.lastName}
-                        </p>
-                        <p className="text-[11px] text-slate-400 font-mono">
-                          {m.memberCode} • Plan: {m.currentPlanName}
-                        </p>
-                      </div>
-                    </div>
-                    <span className="text-xs text-emerald-600 font-semibold hover:underline">
-                      View Profile →
-                    </span>
-                  </div>
-                ))}
+            <div className="mt-5 pt-3 border-t border-slate-100 flex justify-between items-center text-xs">
+              <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-bold uppercase border border-emerald-200">
+                Active Staff
+              </span>
+              <button
+                onClick={() => {
+                  if (confirm(`Remove trainer ${t.name}?`)) {
+                    store.deleteTrainer(t.id);
+                  }
+                }}
+                className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
             </div>
           </div>
-        </Modal>
-      )}
+        ))}
+      </div>
 
-      {/* Add / Edit Trainer Modal */}
-      <Modal
-        isOpen={showModal}
-        onClose={() => setShowModal(false)}
-        title={editingTrainer ? 'Edit Trainer Details' : 'Add Personal Trainer'}
-        maxWidth="md"
-      >
-        <form onSubmit={handleSubmit} className="space-y-4">
+      {/* Add Trainer Modal */}
+      <Modal isOpen={isAddOpen} onClose={() => setIsAddOpen(false)} title="Add Fitness Trainer">
+        <form onSubmit={handleAdd} className="space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-              Trainer Name *
-            </label>
+            <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">Full Name *</label>
             <input
               type="text"
               required
               value={name}
-              onChange={e => setName(e.target.value)}
-              placeholder="e.g. Vikram Singh"
-              className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs focus:outline-emerald-500"
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. Arjun Kapoor"
+              className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Phone Number *
-              </label>
+              <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">Phone *</label>
               <input
                 type="tel"
                 required
                 value={phone}
-                onChange={e => setPhone(e.target.value)}
-                placeholder="+91 98711 55667"
-                className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs focus:outline-emerald-500"
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="+91 98222 33445"
+                className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Email Address
-              </label>
+              <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">Email</label>
               <input
                 type="email"
                 value={email}
-                onChange={e => setEmail(e.target.value)}
-                placeholder="vikram@gym.com"
-                className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs focus:outline-emerald-500"
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="trainer@gym.com"
+                className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
               />
             </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-              Specialization / Discipline
-            </label>
-            <select
-              value={specialization}
-              onChange={e => setSpecialization(e.target.value)}
-              className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs focus:outline-emerald-500"
-            >
-              <option value="Strength & Conditioning">Strength & Conditioning</option>
-              <option value="Fat Loss & Functional">Fat Loss & Functional Fitness</option>
-              <option value="Bodybuilding & Hypertrophy">Bodybuilding & Hypertrophy</option>
-              <option value="CrossFit & Endurance">CrossFit & High Intensity</option>
-              <option value="Yoga & Mobility">Yoga & Mobility</option>
-              <option value="Rehab & Posture">Postural Rehab & Kinesiology</option>
-            </select>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Joining Date
-              </label>
+              <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">Specialization</label>
               <input
-                type="date"
-                value={joiningDate}
-                onChange={e => setJoiningDate(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs focus:outline-emerald-500"
+                type="text"
+                value={specialization}
+                onChange={(e) => setSpecialization(e.target.value)}
+                placeholder="e.g. Strength & Conditioning"
+                className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Daily Shift Timing
-              </label>
-              <input
-                type="text"
-                value={shiftTiming}
-                onChange={e => setShiftTiming(e.target.value)}
-                placeholder="e.g. 06:00 AM - 02:00 PM"
-                className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs focus:outline-emerald-500"
-              />
+              <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">Shift</label>
+              <select
+                value={shift}
+                onChange={(e: any) => setShift(e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 bg-white"
+              >
+                <option value="morning">Morning Shift</option>
+                <option value="evening">Evening Shift</option>
+                <option value="full_day">Full Day</option>
+              </select>
             </div>
           </div>
 
-          <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+          <div className="flex gap-3 pt-2">
             <button
               type="button"
-              onClick={() => setShowModal(false)}
-              className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 transition-colors"
+              onClick={() => setIsAddOpen(false)}
+              className="flex-1 py-2 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl transition"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-colors shadow-xs"
+              className="flex-1 py-2 px-4 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl transition shadow-xs"
             >
-              {editingTrainer ? 'Update Trainer' : 'Add Trainer'}
+              Save Trainer
             </button>
           </div>
         </form>
       </Modal>
-
-      {/* Delete confirm */}
-      <ConfirmDialog
-        isOpen={!!deleteTrainerId}
-        onClose={() => setDeleteTrainerId(null)}
-        onConfirm={handleDelete}
-        title="Remove Personal Trainer"
-        message="Are you sure you want to remove this trainer? Their clients will remain active on the gym roster without an assigned trainer."
-        confirmText="Remove Trainer"
-        variant="danger"
-      />
     </div>
   );
-}
+};

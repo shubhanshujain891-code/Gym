@@ -1,314 +1,183 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { useStore } from '../../hooks/useStore';
-import { AttendanceRecord, Member } from '../../types';
-import { StatusBadge } from '../../components/common/Badge';
+import { QRScannerMock } from '../../components/qr/QRComponents';
 import { formatDate } from '../../utils/formatters';
-import { QRScannerModal } from '../../components/qr/QRComponents';
-import { useToast } from '../../components/common/Toast';
 import {
-  UserCheck,
-  QrCode,
-  Calendar,
+  CalendarCheck,
+  CheckCircle2,
+  AlertCircle,
   Clock,
+  UserCheck,
   Search,
-  Download,
-  Users,
-  Sun,
-  Moon,
-  Flame,
-  Plus,
 } from 'lucide-react';
 
-interface AttendancePageProps {
-  onSelectMember: (memberId: string) => void;
-}
-
-export function Attendance({ onSelectMember }: AttendancePageProps) {
-  const { store } = useStore();
-  const { success, warning } = useToast();
-
-  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
-  const [showScanner, setShowScanner] = useState(false);
-  const [manualSearch, setManualSearch] = useState('');
-
-  const attendance = store.getAttendance();
+export const Attendance: React.FC = () => {
+  const store = useStore();
+  const gym = store.getActiveGym();
   const members = store.getMembers();
 
-  // Records for selected date
-  const dateRecords = useMemo(() => {
-    return attendance
-      .filter(a => a.date === selectedDate)
-      .sort((a, b) => (b.checkInTime || b.time || '').localeCompare(a.checkInTime || a.time || ''));
-  }, [attendance, selectedDate]);
+  const todayStr = new Date().toISOString().split('T')[0];
+  const [selectedDate, setSelectedDate] = useState(todayStr);
+  const attendanceList = store.getAttendance(selectedDate);
 
-  // Metric breakdown (Section 20)
-  const totalCheckIns = dateRecords.length;
+  const [scanMessage, setScanMessage] = useState<{
+    type: 'success' | 'error';
+    text: string;
+  } | null>(null);
 
-  const morningCheckIns = dateRecords.filter(r => {
-    const timeStr = r.checkInTime || r.time || '00:00';
-    const hour = parseInt(timeStr.split(':')[0], 10);
-    return hour >= 5 && hour < 12;
-  }).length;
+  const handleScanOrVerify = (token: string) => {
+    // Search member by code, qrToken, or phone
+    const cleaned = token.trim().toUpperCase();
+    const member = members.find(
+      (m) =>
+        m.memberCode.toUpperCase() === cleaned ||
+        (m.qrToken && m.qrToken.toUpperCase().includes(cleaned)) ||
+        m.phone === cleaned
+    );
 
-  const eveningCheckIns = dateRecords.filter(r => {
-    const timeStr = r.checkInTime || r.time || '00:00';
-    const hour = parseInt(timeStr.split(':')[0], 10);
-    return hour >= 16 && hour < 22;
-  }).length;
-
-  // Manual search candidates
-  const manualCandidates = useMemo(() => {
-    if (!manualSearch.trim()) return [];
-    const q = manualSearch.toLowerCase();
-    const checkedInMemberIds = new Set(dateRecords.map(r => r.memberId));
-
-    return members
-      .filter(
-        m =>
-          `${m.firstName} ${m.lastName}`.toLowerCase().includes(q) ||
-          m.memberCode.toLowerCase().includes(q) ||
-          m.phone.includes(q)
-      )
-      .map(m => ({
-        member: m,
-        alreadyCheckedIn: checkedInMemberIds.has(m.id),
-      }))
-      .slice(0, 5);
-  }, [manualSearch, members, dateRecords]);
-
-  const handleManualCheckIn = (memberId: string) => {
-    const res = store.markAttendance(memberId, 'manual');
-    if (res.success) {
-      success('Check-In Recorded', res.message);
-      setManualSearch('');
-    } else {
-      warning('Attendance Alert', res.message);
+    if (!member) {
+      setScanMessage({
+        type: 'error',
+        text: `No member found matching "${token}". Please check the member code.`,
+      });
+      return;
     }
-  };
 
-  const handleExportAttendance = () => {
-    const headers = 'Date,Time,Member ID,Member Name,Method,Status\n';
-    const rows = dateRecords
-      .map(
-        r =>
-          `"${r.date}","${r.checkInTime || r.time || ''}","${r.memberCode}","${r.memberName}","${(r.checkInMethod || r.method || 'manual').replace('_', ' ')}","${r.status || 'present'}"`
-      )
-      .join('\n');
+    if (member.status === 'expired') {
+      setScanMessage({
+        type: 'error',
+        text: `Access Denied: ${member.firstName}'s membership expired on ${formatDate(member.membershipEndDate)}. Please renew first.`,
+      });
+      return;
+    }
 
-    const blob = new Blob([headers + rows], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `fitmanage_attendance_${selectedDate}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-    success('Attendance Exported', `Downloaded check-ins for ${selectedDate}`);
+    const rec = store.recordAttendance(member.id, 'qr_code');
+    setScanMessage({
+      type: 'success',
+      text: `Access Granted! Welcome ${member.firstName} ${member.lastName} (${rec.checkInTime || rec.time}).`,
+    });
+
+    setTimeout(() => setScanMessage(null), 4000);
   };
 
   return (
-    <div className="space-y-6 pb-12">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="space-y-6">
+      {/* Top Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
         <div>
-          <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">
-            Daily Attendance
-          </h1>
+          <h1 className="text-xl font-extrabold text-slate-900 tracking-tight">Attendance Center</h1>
           <p className="text-xs text-slate-500 mt-0.5">
-            Real-time floor check-ins, optical QR code verification, and visit trends.
+            Real-time biometric & QR check-in log for <span className="font-semibold">{gym.name}</span>
           </p>
         </div>
-
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-3">
+          <label className="text-xs font-semibold text-slate-500 uppercase">Select Date:</label>
           <input
             type="date"
             value={selectedDate}
-            onChange={e => setSelectedDate(e.target.value)}
-            className="px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 shadow-2xs focus:outline-emerald-500"
+            onChange={(e) => setSelectedDate(e.target.value)}
+            className="px-3 py-1.5 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 bg-white font-medium"
           />
-
-          <button
-            type="button"
-            onClick={handleExportAttendance}
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-semibold hover:bg-slate-50 transition-colors shadow-2xs"
-          >
-            <Download className="w-4 h-4 text-slate-500" />
-            <span className="hidden sm:inline">Export</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setShowScanner(true)}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-colors shadow-xs"
-          >
-            <QrCode className="w-4 h-4" />
-            <span>Scan QR Pass</span>
-          </button>
         </div>
       </div>
 
-      {/* Summary Cards - Section 20 */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xs">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Check-Ins</span>
-            <Users className="w-4 h-4 text-emerald-500" />
-          </div>
-          <p className="text-2xl font-black text-slate-900 dark:text-white mt-1">{totalCheckIns}</p>
-          <p className="text-[11px] text-slate-400 mt-0.5">Recorded for {formatDate(selectedDate)}</p>
-        </div>
+      {/* QR Scanner & Manual Verification */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-1 space-y-4">
+          <QRScannerMock onScan={handleScanOrVerify} />
 
-        <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xs">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Morning Slot</span>
-            <Sun className="w-4 h-4 text-amber-500" />
-          </div>
-          <p className="text-2xl font-black text-slate-900 dark:text-white mt-1">{morningCheckIns}</p>
-          <p className="text-[11px] text-slate-400 mt-0.5">06:00 AM – 12:00 PM</p>
-        </div>
-
-        <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xs">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Evening Slot</span>
-            <Moon className="w-4 h-4 text-indigo-500" />
-          </div>
-          <p className="text-2xl font-black text-slate-900 dark:text-white mt-1">{eveningCheckIns}</p>
-          <p className="text-[11px] text-slate-400 mt-0.5">04:00 PM – 10:00 PM</p>
-        </div>
-
-        <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xs">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Peak Hour</span>
-            <Flame className="w-4 h-4 text-rose-500" />
-          </div>
-          <p className="text-2xl font-black text-slate-900 dark:text-white mt-1">7:00 PM</p>
-          <p className="text-[11px] text-slate-400 mt-0.5">Highest daily capacity</p>
-        </div>
-      </div>
-
-      {/* Manual Mark Check-In Search Bar */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200/80 dark:border-slate-800 shadow-2xs space-y-3">
-        <label className="text-xs font-bold uppercase tracking-wider text-slate-400 block">
-          Manual Reception Check-In (Search Member)
-        </label>
-        <div className="relative">
-          <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Type member name, phone or ID to check in immediately..."
-            value={manualSearch}
-            onChange={e => setManualSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-emerald-500"
-          />
-        </div>
-
-        {manualCandidates.length > 0 && (
-          <div className="divide-y divide-slate-100 dark:divide-slate-800 border border-slate-100 dark:border-slate-800 rounded-xl overflow-hidden bg-slate-50/50 dark:bg-slate-800/40">
-            {manualCandidates.map(({ member, alreadyCheckedIn }) => (
-              <div key={member.id} className="p-3 flex items-center justify-between text-xs">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-emerald-600/10 text-emerald-600 font-bold flex items-center justify-center">
-                    {member.firstName[0]}
-                  </div>
-                  <div>
-                    <span className="font-bold text-slate-900 dark:text-white">
-                      {member.firstName} {member.lastName}
-                    </span>
-                    <span className="text-slate-400 font-mono text-[11px] block">
-                      {member.memberCode} • {member.phone}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <StatusBadge status={member.status} />
-                  {alreadyCheckedIn ? (
-                    <span className="px-2.5 py-1 rounded-lg bg-slate-200 dark:bg-slate-700 text-slate-500 text-[11px] font-semibold">
-                      Already Checked In Today
-                    </span>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => handleManualCheckIn(member.id)}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-xs shadow-2xs transition-colors"
-                    >
-                      <UserCheck className="w-3.5 h-3.5" />
-                      <span>Mark Present</span>
-                    </button>
-                  )}
-                </div>
+          {/* Feedback banner */}
+          {scanMessage && (
+            <div
+              className={`p-4 rounded-xl border flex items-start gap-3 text-xs animate-in fade-in ${
+                scanMessage.type === 'success'
+                  ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                  : 'bg-rose-50 border-rose-200 text-rose-800'
+              }`}
+            >
+              {scanMessage.type === 'success' ? (
+                <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+              ) : (
+                <AlertCircle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+              )}
+              <div>
+                <p className="font-bold">{scanMessage.type === 'success' ? 'Verified' : 'Verification Issue'}</p>
+                <p className="mt-0.5 leading-relaxed">{scanMessage.text}</p>
               </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Real-Time Check-In Feed */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xs overflow-hidden">
-        <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
-          <div>
-            <h2 className="text-sm font-bold text-slate-900 dark:text-white">
-              Check-In Stream ({totalCheckIns})
-            </h2>
-            <p className="text-xs text-slate-400">Reverse chronological order for {formatDate(selectedDate)}</p>
-          </div>
-        </div>
-
-        <div className="divide-y divide-slate-100 dark:divide-slate-800">
-          {dateRecords.length === 0 ? (
-            <div className="py-16 text-center text-xs text-slate-400">
-              No check-in records found for this date. Scan a QR pass or use manual check-in above.
             </div>
-          ) : (
-            dateRecords.map(record => {
-              const m = members.find(mem => mem.id === record.memberId);
-              return (
-                <div
-                  key={record.id}
-                  className="p-4 flex items-center justify-between hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors"
-                >
-                  <div
-                    onClick={() => onSelectMember(record.memberId)}
-                    className="flex items-center gap-3 cursor-pointer group"
-                  >
-                    <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 flex items-center justify-center font-bold text-xs">
-                      {record.memberName[0]}
-                    </div>
-                    <div>
-                      <h4 className="font-bold text-xs text-slate-900 dark:text-white group-hover:text-emerald-600 transition-colors">
-                        {record.memberName}
-                      </h4>
-                      <p className="text-[11px] text-slate-400 font-mono">
-                        {record.memberCode} • Plan: {m?.currentPlanName || 'Standard'}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-4">
-                    <div className="text-right">
-                      <span className="font-mono text-xs font-bold text-slate-900 dark:text-white block">
-                        {record.checkInTime || record.time}
-                      </span>
-                      <span className="text-[10px] text-slate-400 uppercase tracking-wider block">
-                        via {(record.checkInMethod || record.method || 'manual').replace('_', ' ')}
-                      </span>
-                    </div>
-                    {m && <StatusBadge status={m.status} />}
-                  </div>
-                </div>
-              );
-            })
           )}
+
+          {/* Quick Stats Box */}
+          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs space-y-2">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Date Summary</h4>
+            <div className="flex justify-between text-xs py-1 border-b border-slate-100">
+              <span className="text-slate-600">Total Check-ins</span>
+              <span className="font-bold text-slate-900">{attendanceList.length}</span>
+            </div>
+            <div className="flex justify-between text-xs py-1">
+              <span className="text-slate-600">Active Gym Members</span>
+              <span className="font-bold text-emerald-600">{members.filter(m => m.status === 'active').length}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Live Attendance List */}
+        <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+          <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+            <h3 className="text-sm font-bold text-slate-900">
+              Check-in Log ({formatDate(selectedDate)})
+            </h3>
+            <span className="text-xs px-2.5 py-0.5 bg-blue-50 text-blue-700 rounded-full font-semibold border border-blue-200">
+              {attendanceList.length} present
+            </span>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-slate-50 text-slate-600 uppercase font-semibold border-b border-slate-100">
+                <tr>
+                  <th className="px-4 py-3">Member</th>
+                  <th className="px-4 py-3">Check-in Time</th>
+                  <th className="px-4 py-3">Method</th>
+                  <th className="px-4 py-3">Staff / Gate</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {attendanceList.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="px-4 py-12 text-center text-slate-400">
+                      No check-ins logged for {formatDate(selectedDate)}.
+                    </td>
+                  </tr>
+                ) : (
+                  attendanceList.map((record) => (
+                    <tr key={record.id} className="hover:bg-slate-50 transition">
+                      <td className="px-4 py-3">
+                        <div className="font-bold text-slate-800">{record.memberName}</div>
+                        <div className="text-[11px] text-slate-400">{record.memberCode}</div>
+                      </td>
+                      <td className="px-4 py-3 font-semibold text-slate-700">
+                        <div className="flex items-center gap-1.5">
+                          <Clock className="w-3.5 h-3.5 text-slate-400" />
+                          <span>{record.time || record.checkInTime}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 font-semibold text-[10px] uppercase border border-slate-200">
+                          {record.method || record.checkInMethod}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-slate-500">
+                        {record.staffName || 'Reception Scanner'}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
-
-      {/* QR Scanner Modal */}
-      <QRScannerModal
-        isOpen={showScanner}
-        onClose={() => setShowScanner(false)}
-        onCheckInSuccess={() => {
-          // Handled via store reactivity
-        }}
-      />
     </div>
   );
-}
+};

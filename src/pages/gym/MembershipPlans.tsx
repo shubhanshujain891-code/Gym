@@ -1,429 +1,212 @@
 import React, { useState } from 'react';
 import { useStore } from '../../hooks/useStore';
 import { MembershipPlan } from '../../types';
-import { Modal } from '../../components/common/Modal';
-import { ConfirmDialog } from '../../components/common/ConfirmDialog';
 import { formatCurrency } from '../../utils/formatters';
-import { useToast } from '../../components/common/Toast';
-import { Layers, Plus, Check, Edit3, Trash2, Users, ShieldCheck, Zap } from 'lucide-react';
+import { Modal } from '../../components/common/Modal';
+import { Layers, Plus, Check, Trash2, Star } from 'lucide-react';
 
-export function MembershipPlans() {
-  const { store, currentGym } = useStore();
-  const { success, error } = useToast();
-  const currencySymbol = currentGym.settings.currencySymbol || '₹';
-
+export const MembershipPlans: React.FC = () => {
+  const store = useStore();
+  const gym = store.getActiveGym();
   const plans = store.getPlans();
-  const members = store.getMembers();
 
-  const [showModal, setShowModal] = useState(false);
-  const [editingPlan, setEditingPlan] = useState<MembershipPlan | null>(null);
-  const [deletePlanId, setDeletePlanId] = useState<string | null>(null);
-
-  // Form fields
+  const [isAddOpen, setIsAddOpen] = useState(false);
   const [name, setName] = useState('');
   const [durationMonths, setDurationMonths] = useState(1);
-  const [price, setPrice] = useState(1500);
+  const [price, setPrice] = useState(1999);
+  const [admissionFee, setAdmissionFee] = useState(0);
   const [description, setDescription] = useState('');
-  const [accessType, setAccessType] = useState<MembershipPlan['accessType']>('all_access');
-  const [ptSessionsIncluded, setPtSessionsIncluded] = useState(0);
-  const [freezeDaysAllowed, setFreezeDaysAllowed] = useState(0);
-  const [featureInput, setFeatureInput] = useState('');
-  const [features, setFeatures] = useState<string[]>([]);
-  const [isActive, setIsActive] = useState(true);
+  const [features, setFeatures] = useState('Gym Floor Access, Locker Room, Steam Bath');
 
-  const openCreateModal = () => {
-    setEditingPlan(null);
-    setName('');
-    setDurationMonths(1);
-    setPrice(1500);
-    setDescription('');
-    setAccessType('all_access');
-    setPtSessionsIncluded(0);
-    setFreezeDaysAllowed(0);
-    setFeatures([
-      'Access to Gym Floor & Cardio Zone',
-      'Free Locker & Shower Access',
-      'Initial Fitness Assessment',
-    ]);
-    setIsActive(true);
-    setShowModal(true);
-  };
-
-  const openEditModal = (plan: MembershipPlan) => {
-    setEditingPlan(plan);
-    setName(plan.name);
-    setDurationMonths(plan.durationMonths);
-    setPrice(plan.price);
-    setDescription(plan.description);
-    setAccessType(plan.accessType);
-    setPtSessionsIncluded(plan.ptSessionsIncluded);
-    setFreezeDaysAllowed(plan.freezeDaysAllowed);
-    setFeatures([...plan.features]);
-    setIsActive(plan.isActive);
-    setShowModal(true);
-  };
-
-  const handleAddFeature = () => {
-    if (!featureInput.trim()) return;
-    setFeatures([...features, featureInput.trim()]);
-    setFeatureInput('');
-  };
-
-  const handleRemoveFeature = (index: number) => {
-    setFeatures(features.filter((_, i) => i !== index));
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleAddPlan = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) {
-      error('Validation Error', 'Please enter a plan name.');
-      return;
-    }
-    if (price <= 0) {
-      error('Validation Error', 'Price must be greater than 0.');
-      return;
-    }
+    if (!name.trim()) return;
 
-    try {
-      if (editingPlan) {
-        store.updatePlan(editingPlan.id, {
-          name,
-          durationMonths: Number(durationMonths),
-          price: Number(price),
-          description,
-          accessType,
-          ptSessionsIncluded: Number(ptSessionsIncluded),
-          freezeDaysAllowed: Number(freezeDaysAllowed),
-          features,
-          isActive,
-        });
-        success('Plan Updated', `${name} plan updated successfully.`);
-      } else {
-        store.createPlan({
-          name,
-          durationMonths: Number(durationMonths),
-          price: Number(price),
-          description,
-          accessType,
-          ptSessionsIncluded: Number(ptSessionsIncluded),
-          freezeDaysAllowed: Number(freezeDaysAllowed),
-          features,
-          isActive,
-        });
-        success('Plan Created', `${name} plan has been launched.`);
-      }
-      setShowModal(false);
-    } catch (err: any) {
-      error('Failed to save plan', err.message);
-    }
-  };
+    store.addPlan({
+      name: name.trim(),
+      durationMonths,
+      price,
+      admissionFee,
+      description: description.trim(),
+      popular: false,
+      isActive: true,
+      features: features.split(',').map((f) => f.trim()).filter(Boolean),
+    });
 
-  const handleDelete = () => {
-    if (!deletePlanId) return;
-    store.deletePlan(deletePlanId);
-    success('Plan Removed', 'Membership plan archived.');
-    setDeletePlanId(null);
+    setIsAddOpen(false);
+    setName('');
   };
 
   return (
-    <div className="space-y-6 pb-12">
+    <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
         <div>
-          <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">
-            Membership Packages
-          </h1>
+          <h1 className="text-xl font-extrabold text-slate-900 tracking-tight">Membership Packages</h1>
           <p className="text-xs text-slate-500 mt-0.5">
-            Configure subscription pricing tiers, durations, benefits, and personal training inclusions.
+            Configure subscription tiers, group packages, and admission fees
           </p>
         </div>
-
         <button
-          type="button"
-          onClick={openCreateModal}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-colors shadow-xs"
+          onClick={() => setIsAddOpen(true)}
+          className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl transition shadow-xs self-start sm:self-auto"
         >
           <Plus className="w-4 h-4" />
-          <span>+ Create Membership Plan</span>
+          <span>Add New Package</span>
         </button>
       </div>
 
-      {/* Plan Cards Grid - Section 14 */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {plans.map(plan => {
-          const subscriberCount = members.filter(m => m.currentPlanId === plan.id).length;
+      {/* Plans Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {plans.map((plan) => (
+          <div
+            key={plan.id}
+            className={`bg-white rounded-2xl border p-6 flex flex-col justify-between transition relative shadow-xs ${
+              plan.popular
+                ? 'border-emerald-500 ring-2 ring-emerald-500/20'
+                : 'border-slate-200 hover:border-slate-300'
+            }`}
+          >
+            {plan.popular && (
+              <span className="absolute -top-3 right-6 bg-emerald-600 text-white px-3 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider flex items-center gap-1 shadow-xs">
+                <Star className="w-3 h-3 fill-current" /> Most Popular
+              </span>
+            )}
 
-          return (
-            <div
-              key={plan.id}
-              className={`rounded-3xl border p-6 flex flex-col justify-between transition-all ${
-                plan.isActive
-                  ? 'bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-800 shadow-2xs'
-                  : 'bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 opacity-60'
-              }`}
-            >
-              <div>
-                {/* Top badges */}
-                <div className="flex items-center justify-between gap-2 mb-3">
-                  <span className="px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 text-[11px] font-bold">
-                    {plan.durationMonths} {plan.durationMonths === 1 ? 'Month' : 'Months'}
-                  </span>
-                  <div className="flex items-center gap-1.5 text-xs text-slate-500">
-                    <Users className="w-3.5 h-3.5 text-slate-400" />
-                    <span>{subscriberCount} members</span>
-                  </div>
-                </div>
+            <div>
+              <h3 className="text-base font-bold text-slate-900">{plan.name}</h3>
+              <p className="text-xs text-slate-500 mt-1 min-h-[32px]">{plan.description}</p>
 
-                <h3 className="text-xl font-extrabold text-slate-900 dark:text-white">{plan.name}</h3>
-                <p className="text-xs text-slate-500 mt-1 min-h-[32px]">{plan.description}</p>
-
-                {/* Price Display */}
-                <div className="mt-4 pb-4 border-b border-slate-100 dark:border-slate-800">
-                  <span className="text-3xl font-black text-slate-900 dark:text-white">
-                    {formatCurrency(plan.price, currencySymbol)}
-                  </span>
-                  <span className="text-xs text-slate-400 font-medium ml-1">
-                    / {plan.durationMonths === 1 ? 'month' : `${plan.durationMonths} mos`}
-                  </span>
-                </div>
-
-                {/* Highlights */}
-                <div className="py-3 flex items-center justify-between text-xs text-slate-600 dark:text-slate-300 border-b border-slate-100 dark:border-slate-800">
-                  <span>PT Sessions:</span>
-                  <span className="font-bold text-slate-900 dark:text-white">
-                    {plan.ptSessionsIncluded > 0 ? `${plan.ptSessionsIncluded} sessions` : 'None'}
-                  </span>
-                </div>
-                <div className="py-2.5 flex items-center justify-between text-xs text-slate-600 dark:text-slate-300 border-b border-slate-100 dark:border-slate-800">
-                  <span>Freeze Days Allowed:</span>
-                  <span className="font-bold text-slate-900 dark:text-white">
-                    {plan.freezeDaysAllowed > 0 ? `${plan.freezeDaysAllowed} days` : 'Not permitted'}
-                  </span>
-                </div>
-
-                {/* Features List */}
-                <div className="mt-4 space-y-2">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
-                    Included Benefits
-                  </span>
-                  {plan.features.map((feat, idx) => (
-                    <div key={idx} className="flex items-center gap-2 text-xs text-slate-700 dark:text-slate-300">
-                      <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                      <span>{feat}</span>
-                    </div>
-                  ))}
-                </div>
+              <div className="mt-4 pt-4 border-t border-slate-100 flex items-baseline gap-1">
+                <span className="text-3xl font-black text-slate-900">
+                  {formatCurrency(plan.price, gym.settings.currencySymbol)}
+                </span>
+                <span className="text-xs text-slate-400 font-medium">
+                  / {plan.durationMonths} {plan.durationMonths === 1 ? 'Month' : 'Months'}
+                </span>
               </div>
 
-              {/* Actions Footer */}
-              <div className="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                <button
-                  type="button"
-                  onClick={() => openEditModal(plan)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 transition-colors"
-                >
-                  <Edit3 className="w-3.5 h-3.5" />
-                  <span>Edit Plan</span>
-                </button>
+              {plan.admissionFee && plan.admissionFee > 0 ? (
+                <p className="text-[11px] text-slate-500 mt-1">
+                  + {formatCurrency(plan.admissionFee, gym.settings.currencySymbol)} Admission Fee
+                </p>
+              ) : null}
 
-                <button
-                  type="button"
-                  onClick={() => setDeletePlanId(plan.id)}
-                  className="p-2 text-slate-400 hover:text-rose-600 transition-colors"
-                  title="Archive Plan"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+              {/* Features List */}
+              <div className="mt-6 space-y-2.5">
+                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Features</p>
+                {plan.features?.map((feat, idx) => (
+                  <div key={idx} className="flex items-center gap-2 text-xs text-slate-700">
+                    <div className="w-4 h-4 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+                      <Check className="w-2.5 h-2.5 stroke-[3]" />
+                    </div>
+                    <span>{feat}</span>
+                  </div>
+                ))}
               </div>
             </div>
-          );
-        })}
+
+            <div className="mt-6 pt-4 border-t border-slate-100 flex justify-between items-center">
+              <span className="text-[10px] uppercase font-bold text-slate-400">
+                Duration: {plan.durationMonths} Mo
+              </span>
+              <button
+                onClick={() => {
+                  if (confirm(`Delete plan "${plan.name}"?`)) {
+                    store.deletePlan(plan.id);
+                  }
+                }}
+                className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        ))}
       </div>
 
-      {/* Plan Modal (Create / Edit) - Section 15 */}
-      <Modal
-        isOpen={showModal}
-        onClose={() => setShowModal(false)}
-        title={editingPlan ? 'Edit Membership Plan' : 'Create Membership Plan'}
-        maxWidth="lg"
-      >
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Plan Name *
-              </label>
-              <input
-                type="text"
-                required
-                value={name}
-                onChange={e => setName(e.target.value)}
-                placeholder="e.g. Annual Elite Transformation"
-                className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs focus:outline-emerald-500"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Duration (Months) *
-              </label>
-              <select
-                value={durationMonths}
-                onChange={e => setDurationMonths(Number(e.target.value))}
-                className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs focus:outline-emerald-500"
-              >
-                <option value={1}>1 Month (Monthly)</option>
-                <option value={3}>3 Months (Quarterly)</option>
-                <option value={6}>6 Months (Half-Yearly)</option>
-                <option value={12}>12 Months (Annual)</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Price ({currencySymbol}) *
-              </label>
-              <input
-                type="number"
-                required
-                min="1"
-                value={price}
-                onChange={e => setPrice(Number(e.target.value))}
-                className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-bold text-emerald-600 focus:outline-emerald-500"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Access Type
-              </label>
-              <select
-                value={accessType}
-                onChange={e => setAccessType(e.target.value as any)}
-                className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs focus:outline-emerald-500"
-              >
-                <option value="all_access">All Access (Gym + Cardio + Steam)</option>
-                <option value="gym_cardio">Gym Floor & Cardio</option>
-                <option value="gym_only">Weights Only</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Personal Training Sessions Included
-              </label>
-              <input
-                type="number"
-                min="0"
-                value={ptSessionsIncluded}
-                onChange={e => setPtSessionsIncluded(Number(e.target.value))}
-                className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs focus:outline-emerald-500"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Membership Freeze Days Allowed
-              </label>
-              <input
-                type="number"
-                min="0"
-                value={freezeDaysAllowed}
-                onChange={e => setFreezeDaysAllowed(Number(e.target.value))}
-                className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs focus:outline-emerald-500"
-              />
-            </div>
-          </div>
-
+      {/* Add Plan Modal */}
+      <Modal isOpen={isAddOpen} onClose={() => setIsAddOpen(false)} title="Create Membership Plan">
+        <form onSubmit={handleAddPlan} className="space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-              Short Description
-            </label>
+            <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">Plan Name *</label>
             <input
               type="text"
-              value={description}
-              onChange={e => setDescription(e.target.value)}
-              placeholder="e.g. Best for dedicated individuals seeking long-term body transformation"
-              className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs focus:outline-emerald-500"
+              required
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. 6 Months Strength + Cardio"
+              className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
             />
           </div>
 
-          {/* Features Builder */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-              Features & Benefits
-            </label>
-            <div className="flex gap-2 mb-2">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">Duration (Months)</label>
               <input
-                type="text"
-                value={featureInput}
-                onChange={e => setFeatureInput(e.target.value)}
-                placeholder="e.g. Free Diet Consultation & InBody Scan"
-                onKeyDown={e => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    handleAddFeature();
-                  }
-                }}
-                className="flex-1 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs focus:outline-emerald-500"
+                type="number"
+                min="1"
+                max="36"
+                value={durationMonths}
+                onChange={(e) => setDurationMonths(Number(e.target.value))}
+                className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
               />
-              <button
-                type="button"
-                onClick={handleAddFeature}
-                className="px-3 py-2 rounded-xl bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 text-xs font-bold"
-              >
-                Add
-              </button>
             </div>
-
-            <div className="flex flex-wrap gap-2">
-              {features.map((f, i) => (
-                <span
-                  key={i}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs"
-                >
-                  <span>{f}</span>
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveFeature(i)}
-                    className="text-slate-400 hover:text-rose-500 font-bold"
-                  >
-                    ×
-                  </button>
-                </span>
-              ))}
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">
+                Price ({gym.settings.currencySymbol})
+              </label>
+              <input
+                type="number"
+                min="0"
+                value={price}
+                onChange={(e) => setPrice(Number(e.target.value))}
+                className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 font-bold"
+              />
             </div>
           </div>
 
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">Description</label>
+            <textarea
+              rows={2}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Brief summary of what this plan includes..."
+              className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">
+              Included Features (comma separated)
+            </label>
+            <input
+              type="text"
+              value={features}
+              onChange={(e) => setFeatures(e.target.value)}
+              placeholder="Gym Floor, Steam Bath, Locker"
+              className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
+            />
+          </div>
+
+          <div className="flex gap-3 pt-2">
             <button
               type="button"
-              onClick={() => setShowModal(false)}
-              className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 transition-colors"
+              onClick={() => setIsAddOpen(false)}
+              className="flex-1 py-2 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl transition"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-colors shadow-xs"
+              className="flex-1 py-2 px-4 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl transition shadow-xs"
             >
-              {editingPlan ? 'Update Plan' : 'Publish Plan'}
+              Save Package
             </button>
           </div>
         </form>
       </Modal>
-
-      {/* Delete confirm */}
-      <ConfirmDialog
-        isOpen={!!deletePlanId}
-        onClose={() => setDeletePlanId(null)}
-        onConfirm={handleDelete}
-        title="Archive Membership Plan"
-        message="Are you sure? Existing members on this plan will continue unaffected, but new registrations cannot choose it."
-        confirmText="Archive Plan"
-        variant="danger"
-      />
     </div>
   );
-}
+};

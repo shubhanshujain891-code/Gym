@@ -1,591 +1,255 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { useStore } from '../../hooks/useStore';
-import { Member, MemberStatus, PaymentRecord } from '../../types';
-import { StatusBadge } from '../../components/common/Badge';
-import { RiskBadge } from '../../components/common/RiskBadge';
-import { formatCurrency, formatDate, calculateMemberRiskScore } from '../../utils/formatters';
-import { AddMemberModal } from './AddMemberModal';
-import { BulkImportModal } from '../../components/common/BulkImportModal';
-import { CollectPaymentModal } from '../../components/common/CollectPaymentModal';
-import { WhatsAppModal } from '../../components/whatsapp/WhatsAppModal';
-import { PaymentReceiptModal } from '../../components/receipt/PaymentReceiptModal';
-import { ConfirmDialog } from '../../components/common/ConfirmDialog';
-import { useToast } from '../../components/common/Toast';
+import { Member, MembershipStatus } from '../../types';
+import { Badge } from '../../components/common/Badge';
+import { formatCurrency, formatDate } from '../../utils/formatters';
+import { Modal } from '../../components/common/Modal';
+import { MemberQRCode } from '../../components/qr/QRComponents';
 import {
   Search,
   Filter,
   UserPlus,
-  UploadCloud,
-  Download,
-  MoreVertical,
-  MessageSquare,
+  QrCode,
   CreditCard,
-  Eye,
-  Edit3,
   Trash2,
-  ChevronLeft,
-  ChevronRight,
-  ArrowUpDown,
-  Phone,
+  CalendarCheck,
   CheckCircle2,
+  Phone,
+  Mail,
 } from 'lucide-react';
 
-interface MembersPageProps {
-  onSelectMember: (memberId: string) => void;
-  initialFilter?: string;
+interface MembersProps {
+  onOpenAddMember: () => void;
+  onSelectMemberForPayment: (member: Member) => void;
 }
 
-export function Members({ onSelectMember, initialFilter }: MembersPageProps) {
-  const { store, currentGym } = useStore();
-  const { success } = useToast();
-  const currencySymbol = currentGym.settings.currencySymbol || '₹';
-
-  // Modal States
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [editMember, setEditMember] = useState<Member | null>(null);
-  const [showImportModal, setShowImportModal] = useState(false);
-  const [collectPaymentMember, setCollectPaymentMember] = useState<Member | null>(null);
-  const [whatsAppMember, setWhatsAppMember] = useState<Member | null>(null);
-  const [deleteMemberId, setDeleteMemberId] = useState<string | null>(null);
-  const [viewReceiptPayment, setViewReceiptPayment] = useState<PaymentRecord | null>(null);
-
-  // Filters
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>(initialFilter || 'all');
-  const [planFilter, setPlanFilter] = useState<string>('all');
-  const [trainerFilter, setTrainerFilter] = useState<string>('all');
-  const [balanceFilter, setBalanceFilter] = useState<'all' | 'pending' | 'cleared'>('all');
-  const [sortBy, setSortBy] = useState<'name' | 'expiry' | 'join' | 'balance'>('join');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
-
-  // Pagination
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
-
+export const Members: React.FC<MembersProps> = ({
+  onOpenAddMember,
+  onSelectMemberForPayment,
+}) => {
+  const store = useStore();
   const members = store.getMembers();
-  const plans = store.getPlans();
-  const trainers = store.getTrainers();
+  const gym = store.getActiveGym();
 
-  // Filter and sort members
-  const filteredMembers = useMemo(() => {
-    let result = [...members];
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [selectedQrMember, setSelectedQrMember] = useState<Member | null>(null);
+  const [checkInSuccessMember, setCheckInSuccessMember] = useState<string | null>(null);
 
-    // Search
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      result = result.filter(
-        m =>
-          `${m.firstName} ${m.lastName}`.toLowerCase().includes(q) ||
-          m.memberCode.toLowerCase().includes(q) ||
-          m.phone.includes(q) ||
-          m.email.toLowerCase().includes(q)
-      );
-    }
+  const filteredMembers = members.filter((m) => {
+    const matchesSearch =
+      m.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      m.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      m.memberCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      m.phone.includes(searchTerm);
 
-    // Status filter
-    if (statusFilter !== 'all') {
-      result = result.filter(m => m.status === statusFilter);
-    }
+    const matchesStatus = statusFilter === 'all' || m.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
 
-    // Plan filter
-    if (planFilter !== 'all') {
-      result = result.filter(m => m.currentPlanId === planFilter);
-    }
-
-    // Trainer filter
-    if (trainerFilter !== 'all') {
-      result = result.filter(m => m.primaryTrainerId === trainerFilter);
-    }
-
-    // Balance filter
-    if (balanceFilter === 'pending') {
-      result = result.filter(m => m.balanceDue > 0);
-    } else if (balanceFilter === 'cleared') {
-      result = result.filter(m => m.balanceDue === 0);
-    }
-
-    // Sorting
-    result.sort((a, b) => {
-      let comparison = 0;
-      if (sortBy === 'name') {
-        comparison = `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`);
-      } else if (sortBy === 'expiry') {
-        comparison = new Date(a.membershipEndDate).getTime() - new Date(b.membershipEndDate).getTime();
-      } else if (sortBy === 'balance') {
-        comparison = (a.balanceDue || 0) - (b.balanceDue || 0);
-      } else {
-        // join date
-        comparison = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
-      }
-      return sortOrder === 'asc' ? comparison : -comparison;
-    });
-
-    return result;
-  }, [members, searchQuery, statusFilter, planFilter, trainerFilter, balanceFilter, sortBy, sortOrder]);
-
-  // Paginated records
-  const totalPages = Math.ceil(filteredMembers.length / pageSize) || 1;
-  const paginatedMembers = filteredMembers.slice((currentPage - 1) * pageSize, currentPage * pageSize);
-
-  // CSV Export
-  const handleExportCSV = () => {
-    const headers = 'Member ID,First Name,Last Name,Phone,Email,Status,Plan,Start Date,End Date,Total Paid,Balance Due\n';
-    const rows = filteredMembers
-      .map(
-        m =>
-          `"${m.memberCode}","${m.firstName}","${m.lastName}","${m.phone}","${m.email}","${m.status}","${m.currentPlanName}","${m.membershipStartDate}","${m.membershipEndDate}",${m.totalPaid},${m.balanceDue}`
-      )
-      .join('\n');
-
-    const blob = new Blob([headers + rows], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `fitmanage_members_${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-    success('CSV Exported', `Exported ${filteredMembers.length} members.`);
+  const handleQuickCheckIn = (member: Member) => {
+    store.recordAttendance(member.id, 'manual');
+    setCheckInSuccessMember(member.id);
+    setTimeout(() => setCheckInSuccessMember(null), 2500);
   };
 
-  const handleDeleteMember = () => {
-    if (!deleteMemberId) return;
-    store.deleteMember(deleteMemberId);
-    success('Member Archived', 'Member record removed from active roster.');
-    setDeleteMemberId(null);
+  const handleDelete = (member: Member) => {
+    if (confirm(`Are you sure you want to remove ${member.firstName} ${member.lastName}?`)) {
+      store.deleteMember(member.id);
+    }
   };
 
   return (
-    <div className="space-y-6 pb-12">
-      {/* Top Title & Actions Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="space-y-6">
+      {/* Top Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
         <div>
-          <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">
-            Member Directory
-          </h1>
+          <h1 className="text-xl font-extrabold text-slate-900 tracking-tight">Member Directory</h1>
           <p className="text-xs text-slate-500 mt-0.5">
-            Manage profiles, active subscriptions, attendance health, and fee collection.
+            Manage registrations, renewals, and attendance for all {members.length} members
           </p>
         </div>
-
-        <div className="flex items-center gap-2 flex-wrap">
-          <button
-            type="button"
-            onClick={handleExportCSV}
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-semibold hover:bg-slate-50 transition-colors shadow-2xs"
-          >
-            <Download className="w-4 h-4 text-slate-500" />
-            <span>Export CSV</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setShowImportModal(true)}
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-semibold hover:bg-slate-50 transition-colors shadow-2xs"
-          >
-            <UploadCloud className="w-4 h-4 text-slate-500" />
-            <span>Bulk CSV Import</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setEditMember(null);
-              setShowAddModal(true);
-            }}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-colors shadow-xs"
-          >
-            <UserPlus className="w-4 h-4" />
-            <span>+ Add New Member</span>
-          </button>
-        </div>
+        <button
+          onClick={onOpenAddMember}
+          className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl transition shadow-xs self-start sm:self-auto"
+        >
+          <UserPlus className="w-4 h-4" />
+          <span>New Member</span>
+        </button>
       </div>
 
-      {/* Filter and Search Toolbar - Section 11 */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200/80 dark:border-slate-800 shadow-2xs space-y-3">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-          {/* Search Box */}
-          <div className="relative lg:col-span-2">
-            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Search member name, ID, phone, or email..."
-              value={searchQuery}
-              onChange={e => {
-                setSearchQuery(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="w-full pl-10 pr-4 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-emerald-500"
-            />
-          </div>
-
-          {/* Status Filter */}
-          <div>
-            <select
-              value={statusFilter}
-              onChange={e => {
-                setStatusFilter(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-emerald-500"
-            >
-              <option value="all">All Statuses ({members.length})</option>
-              <option value="active">Active Members</option>
-              <option value="expiring_soon">Expiring Soon (7d)</option>
-              <option value="expired">Expired Members</option>
-              <option value="paused">Paused / Frozen</option>
-            </select>
-          </div>
-
-          {/* Plan Filter */}
-          <div>
-            <select
-              value={planFilter}
-              onChange={e => {
-                setPlanFilter(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-emerald-500"
-            >
-              <option value="all">All Plans</option>
-              {plans.map(p => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Balance Filter */}
-          <div>
-            <select
-              value={balanceFilter}
-              onChange={e => {
-                setBalanceFilter(e.target.value as any);
-                setCurrentPage(1);
-              }}
-              className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-emerald-500"
-            >
-              <option value="all">All Balances</option>
-              <option value="pending">Pending Fees Only</option>
-              <option value="cleared">Zero Balance (Paid)</option>
-            </select>
-          </div>
+      {/* Search & Filter Bar */}
+      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col sm:flex-row gap-3 items-center justify-between">
+        <div className="relative w-full sm:w-80">
+          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+          <input
+            type="text"
+            placeholder="Search by name, phone or code..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-9 pr-3 py-2 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 bg-slate-50 focus:bg-white transition"
+          />
         </div>
 
-        {/* Sorting and Active Count Bar */}
-        <div className="flex items-center justify-between text-xs text-slate-500 pt-2 border-t border-slate-100 dark:border-slate-800">
-          <span>
-            Showing <strong className="text-slate-900 dark:text-white">{filteredMembers.length}</strong> matching members
-          </span>
-
-          <div className="flex items-center gap-2">
-            <span className="text-slate-400">Sort By:</span>
+        {/* Filter Pills */}
+        <div className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto pb-1 sm:pb-0">
+          {['all', 'active', 'expiring_soon', 'expired'].map((filter) => (
             <button
-              type="button"
-              onClick={() => {
-                setSortBy('name');
-                setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-              }}
-              className={`px-2 py-1 rounded-lg border text-xs font-semibold ${
-                sortBy === 'name' ? 'border-emerald-500 text-emerald-600' : 'border-slate-200 dark:border-slate-700'
+              key={filter}
+              onClick={() => setStatusFilter(filter)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold uppercase tracking-wider transition ${
+                statusFilter === filter
+                  ? 'bg-slate-900 text-white'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
               }`}
             >
-              Name {sortBy === 'name' && (sortOrder === 'asc' ? '↑' : '↓')}
+              {filter.replace('_', ' ')}
             </button>
-            <button
-              type="button"
-              onClick={() => {
-                setSortBy('expiry');
-                setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-              }}
-              className={`px-2 py-1 rounded-lg border text-xs font-semibold ${
-                sortBy === 'expiry' ? 'border-emerald-500 text-emerald-600' : 'border-slate-200 dark:border-slate-700'
-              }`}
-            >
-              Expiry {sortBy === 'expiry' && (sortOrder === 'asc' ? '↑' : '↓')}
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setSortBy('balance');
-                setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-              }}
-              className={`px-2 py-1 rounded-lg border text-xs font-semibold ${
-                sortBy === 'balance' ? 'border-emerald-500 text-emerald-600' : 'border-slate-200 dark:border-slate-700'
-              }`}
-            >
-              Balance Due {sortBy === 'balance' && (sortOrder === 'asc' ? '↑' : '↓')}
-            </button>
-          </div>
+          ))}
         </div>
       </div>
 
       {/* Members Table */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xs overflow-hidden">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
-            <thead className="bg-slate-50/75 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-slate-500 uppercase text-[10px] font-bold tracking-wider">
+            <thead className="bg-slate-50 text-slate-600 uppercase font-semibold border-b border-slate-100">
               <tr>
-                <th className="py-3.5 px-4">Member</th>
-                <th className="py-3.5 px-3">Contact</th>
-                <th className="py-3.5 px-3">Plan / Validity</th>
-                <th className="py-3.5 px-3">Trainer</th>
-                <th className="py-3.5 px-3">Status</th>
-                <th className="py-3.5 px-3">Engagement</th>
-                <th className="py-3.5 px-3">Balance</th>
-                <th className="py-3.5 px-4 text-right">Quick Actions</th>
+                <th className="px-4 py-3">Member</th>
+                <th className="px-4 py-3">Membership Plan</th>
+                <th className="px-4 py-3">Status & Expiry</th>
+                <th className="px-4 py-3">Balance</th>
+                <th className="px-4 py-3 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
-              {paginatedMembers.length === 0 ? (
+            <tbody className="divide-y divide-slate-100">
+              {filteredMembers.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-12 text-center text-slate-400">
-                    No members match the selected filters.
+                  <td colSpan={5} className="px-4 py-8 text-center text-slate-400">
+                    No members match your current filter.
                   </td>
                 </tr>
               ) : (
-                paginatedMembers.map(member => {
-                  const risk = calculateMemberRiskScore(member);
-                  return (
-                    <tr
-                      key={member.id}
-                      className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors group"
-                    >
-                      {/* Member Info */}
-                      <td className="py-3.5 px-4">
-                        <div
-                          onClick={() => onSelectMember(member.id)}
-                          className="flex items-center gap-3 cursor-pointer"
-                        >
-                          <div className="w-10 h-10 rounded-xl bg-emerald-600/10 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400 font-black text-xs flex items-center justify-center shrink-0">
-                            {member.avatarUrl ? (
-                              <img src={member.avatarUrl} alt="" className="w-full h-full object-cover rounded-xl" />
-                            ) : (
-                              `${member.firstName[0]}${member.lastName[0]}`
-                            )}
+                filteredMembers.map((m) => (
+                  <tr key={m.id} className="hover:bg-slate-50/70 transition">
+                    <td className="px-4 py-3.5">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-800 font-bold flex items-center justify-center shrink-0">
+                          {m.firstName.charAt(0)}
+                        </div>
+                        <div>
+                          <div className="font-bold text-slate-800 text-sm">
+                            {m.firstName} {m.lastName}
                           </div>
-                          <div>
-                            <span className="font-bold text-slate-900 dark:text-white group-hover:text-emerald-600 transition-colors block">
-                              {member.firstName} {member.lastName}
-                            </span>
-                            <span className="font-mono text-slate-400 text-[11px] block">
-                              {member.memberCode}
-                            </span>
+                          <div className="text-[11px] text-slate-400 flex items-center gap-2">
+                            <span>{m.memberCode}</span>
+                            <span>•</span>
+                            <span>{m.phone}</span>
                           </div>
                         </div>
-                      </td>
-
-                      {/* Contact */}
-                      <td className="py-3.5 px-3">
-                        <span className="font-mono text-slate-700 dark:text-slate-300 block">
-                          {member.phone}
-                        </span>
-                        <span className="text-slate-400 text-[11px] truncate block max-w-[140px]">
-                          {member.email}
-                        </span>
-                      </td>
-
-                      {/* Plan / Validity */}
-                      <td className="py-3.5 px-3">
-                        <span className="font-semibold text-slate-900 dark:text-white block">
-                          {member.currentPlanName}
-                        </span>
-                        <span className="text-slate-400 text-[11px] block">
-                          Expires: {formatDate(member.membershipEndDate)}
-                        </span>
-                      </td>
-
-                      {/* Trainer */}
-                      <td className="py-3.5 px-3 text-slate-600 dark:text-slate-300">
-                        {member.primaryTrainerName || (
-                          <span className="text-slate-400 italic">None</span>
-                        )}
-                      </td>
-
-                      {/* Status */}
-                      <td className="py-3.5 px-3">
-                        <StatusBadge status={member.status} />
-                      </td>
-
-                      {/* Risk / Engagement */}
-                      <td className="py-3.5 px-3">
-                        <RiskBadge risk={risk} />
-                      </td>
-
-                      {/* Balance Due */}
-                      <td className="py-3.5 px-3">
-                        {member.balanceDue > 0 ? (
-                          <span className="font-bold text-amber-600 dark:text-amber-400 block">
-                            {formatCurrency(member.balanceDue, currencySymbol)}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <div className="font-medium text-slate-700">{m.currentPlanName || 'Standard'}</div>
+                      <div className="text-[11px] text-slate-400">
+                        Visits: <span className="font-semibold text-slate-600">{m.totalVisits}</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <div className="mb-1">
+                        <Badge status={m.status} />
+                      </div>
+                      <div className="text-[11px] text-slate-500">
+                        Expires: <span className="font-medium text-slate-700">{formatDate(m.membershipEndDate)}</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3.5">
+                      {m.balanceDue > 0 ? (
+                        <div>
+                          <span className="font-bold text-rose-600 block">
+                            {formatCurrency(m.balanceDue, gym.settings.currencySymbol)}
                           </span>
-                        ) : (
-                          <span className="text-emerald-600 font-medium text-[11px]">Paid Full</span>
-                        )}
-                      </td>
-
-                      {/* Actions */}
-                      <td className="py-3.5 px-4 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
-                          {/* WhatsApp trigger */}
-                          <button
-                            type="button"
-                            onClick={() => setWhatsAppMember(member)}
-                            className="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/50 transition-colors"
-                            title="Send WhatsApp Message"
-                          >
-                            <MessageSquare className="w-4 h-4" />
-                          </button>
-
-                          {/* Collect payment trigger */}
-                          <button
-                            type="button"
-                            onClick={() => setCollectPaymentMember(member)}
-                            className="p-1.5 rounded-lg text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/50 transition-colors"
-                            title="Record Payment"
-                          >
-                            <CreditCard className="w-4 h-4" />
-                          </button>
-
-                          {/* View profile */}
-                          <button
-                            type="button"
-                            onClick={() => onSelectMember(member.id)}
-                            className="p-1.5 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                            title="View Full Profile"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </button>
-
-                          {/* Edit member */}
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setEditMember(member);
-                              setShowAddModal(true);
-                            }}
-                            className="p-1.5 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                            title="Edit Member"
-                          >
-                            <Edit3 className="w-4 h-4" />
-                          </button>
-
-                          {/* Delete / Archive */}
-                          <button
-                            type="button"
-                            onClick={() => setDeleteMemberId(member.id)}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition-colors"
-                            title="Archive Member"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          <span className="text-[10px] text-rose-500 uppercase font-semibold">Pending</span>
                         </div>
-                      </td>
-                    </tr>
-                  );
-                })
+                      ) : (
+                        <span className="text-emerald-600 font-semibold text-xs flex items-center gap-1">
+                          <CheckCircle2 className="w-3.5 h-3.5" /> Paid
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3.5 text-right">
+                      <div className="flex items-center justify-end gap-1.5">
+                        {/* Quick Check-In */}
+                        <button
+                          onClick={() => handleQuickCheckIn(m)}
+                          title="Record Attendance"
+                          className={`p-1.5 rounded-lg border transition ${
+                            checkInSuccessMember === m.id
+                              ? 'bg-emerald-600 text-white border-emerald-600'
+                              : 'border-slate-200 text-slate-600 hover:bg-slate-100'
+                          }`}
+                        >
+                          <CalendarCheck className="w-4 h-4" />
+                        </button>
+
+                        {/* View QR */}
+                        <button
+                          onClick={() => setSelectedQrMember(m)}
+                          title="View Member QR Code"
+                          className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 transition"
+                        >
+                          <QrCode className="w-4 h-4" />
+                        </button>
+
+                        {/* Collect Payment / Renew */}
+                        <button
+                          onClick={() => onSelectMemberForPayment(m)}
+                          title="Collect Payment or Renew"
+                          className="p-1.5 rounded-lg border border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition"
+                        >
+                          <CreditCard className="w-4 h-4" />
+                        </button>
+
+                        {/* Delete */}
+                        <button
+                          onClick={() => handleDelete(m)}
+                          title="Delete Member"
+                          className="p-1.5 rounded-lg border border-slate-200 text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
               )}
             </tbody>
           </table>
         </div>
-
-        {/* Pagination Footer */}
-        <div className="flex items-center justify-between px-4 py-3 border-t border-slate-100 dark:border-slate-800 text-xs text-slate-500">
-          <div className="flex items-center gap-2">
-            <span>Rows per page:</span>
-            <select
-              value={pageSize}
-              onChange={e => {
-                setPageSize(Number(e.target.value));
-                setCurrentPage(1);
-              }}
-              className="px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs"
-            >
-              <option value={10}>10</option>
-              <option value={25}>25</option>
-              <option value={50}>50</option>
-            </select>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <span>
-              Page {currentPage} of {totalPages}
-            </span>
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                disabled={currentPage === 1}
-                onClick={() => setCurrentPage(currentPage - 1)}
-                className="p-1 rounded-lg border border-slate-200 dark:border-slate-700 disabled:opacity-40 hover:bg-slate-50 dark:hover:bg-slate-800"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-              <button
-                type="button"
-                disabled={currentPage === totalPages}
-                onClick={() => setCurrentPage(currentPage + 1)}
-                className="p-1 rounded-lg border border-slate-200 dark:border-slate-700 disabled:opacity-40 hover:bg-slate-50 dark:hover:bg-slate-800"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        </div>
       </div>
 
-      {/* Modals */}
-      <AddMemberModal
-        isOpen={showAddModal}
-        onClose={() => {
-          setShowAddModal(false);
-          setEditMember(null);
-        }}
-        editMember={editMember}
-        onSuccess={member => {
-          // Open receipt if newly registered with payment
-          const lastPayment = store.getPaymentsByMember(member.id)[0];
-          if (lastPayment && !editMember) {
-            setViewReceiptPayment(lastPayment);
-          }
-        }}
-      />
-
-      <BulkImportModal
-        isOpen={showImportModal}
-        onClose={() => setShowImportModal(false)}
-        onImportCompleted={() => {
-          // refresh handled automatically by useStore reactivity
-        }}
-      />
-
-      <CollectPaymentModal
-        isOpen={!!collectPaymentMember}
-        onClose={() => setCollectPaymentMember(null)}
-        member={collectPaymentMember}
-        onPaymentSuccess={payment => {
-          setViewReceiptPayment(payment);
-        }}
-      />
-
-      <WhatsAppModal
-        isOpen={!!whatsAppMember}
-        onClose={() => setWhatsAppMember(null)}
-        member={whatsAppMember}
-      />
-
-      <PaymentReceiptModal
-        isOpen={!!viewReceiptPayment}
-        onClose={() => setViewReceiptPayment(null)}
-        payment={viewReceiptPayment}
-        gym={currentGym}
-      />
-
-      <ConfirmDialog
-        isOpen={!!deleteMemberId}
-        onClose={() => setDeleteMemberId(null)}
-        onConfirm={handleDeleteMember}
-        title="Archive Member"
-        message="Are you sure you want to archive this member? Their attendance and payment records will be preserved."
-        confirmText="Archive Member"
-        variant="danger"
-      />
+      {/* Member QR Modal */}
+      {selectedQrMember && (
+        <Modal
+          isOpen={Boolean(selectedQrMember)}
+          onClose={() => setSelectedQrMember(null)}
+          title={`Digital Member Pass - ${selectedQrMember.firstName}`}
+          maxWidth="sm"
+        >
+          <div className="space-y-4">
+            <MemberQRCode member={selectedQrMember} />
+            <div className="text-center text-xs text-slate-500">
+              Present this code at the reception scanner or front desk for express check-in.
+            </div>
+            <button
+              onClick={() => setSelectedQrMember(null)}
+              className="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl text-xs transition"
+            >
+              Close
+            </button>
+          </div>
+        </Modal>
+      )}
     </div>
   );
-}
+};
