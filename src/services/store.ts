@@ -486,6 +486,24 @@ export class Store {
     return newDiet;
   }
 
+  public deleteWorkout(id: string): void {
+    const idx = this.db.workouts.findIndex((w) => w.id === id);
+    if (idx !== -1) {
+      this.db.workouts.splice(idx, 1);
+      this.notify();
+      fetch(`/api/workouts/${id}`, { method: 'DELETE' }).catch(() => {});
+    }
+  }
+
+  public deleteDietPlan(id: string): void {
+    const idx = this.db.diets.findIndex((d) => d.id === id);
+    if (idx !== -1) {
+      this.db.diets.splice(idx, 1);
+      this.notify();
+      fetch(`/api/diets/${id}`, { method: 'DELETE' }).catch(() => {});
+    }
+  }
+
   // --- Progress / Measurements ---
   public getMeasurements(memberId?: string): ProgressRecord[] {
     if (memberId) {

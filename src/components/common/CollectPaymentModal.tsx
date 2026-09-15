@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Modal } from './Modal';
 import { Member, Gym, PaymentMethod } from '../../types';
 import { formatCurrency } from '../../utils/formatters';
 import { useStore } from '../../hooks/useStore';
+import { User, CreditCard } from 'lucide-react';
 
 interface CollectPaymentModalProps {
   isOpen: boolean;
@@ -19,27 +20,53 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
 }) => {
   const store = useStore();
   const gym = store.getActiveGym();
+  const members = store.getMembers();
 
-  const [amount, setAmount] = useState<number>(member?.balanceDue || 0);
+  const [selectedMemberId, setSelectedMemberId] = useState<string>(member?.id || members[0]?.id || '');
+  const activeMember = members.find((m) => m.id === selectedMemberId) || member || members[0];
+
+  const [amount, setAmount] = useState<number>(activeMember?.balanceDue || 1000);
   const [method, setMethod] = useState<PaymentMethod>('upi');
   const [reference, setReference] = useState('');
   const [notes, setNotes] = useState('');
 
-  // Update default amount when member changes
-  React.useEffect(() => {
+  // Update selected member when prop changes
+  useEffect(() => {
     if (member) {
+      setSelectedMemberId(member.id);
       setAmount(member.balanceDue > 0 ? member.balanceDue : 1000);
+    } else if (members.length > 0) {
+      setSelectedMemberId(members[0].id);
+      setAmount(members[0].balanceDue > 0 ? members[0].balanceDue : 1000);
     }
-  }, [member]);
+  }, [member, members]);
 
-  if (!member) return null;
+  // When selectedMemberId changes in dropdown
+  const handleMemberChange = (id: string) => {
+    setSelectedMemberId(id);
+    const m = members.find((item) => item.id === id);
+    if (m) {
+      setAmount(m.balanceDue > 0 ? m.balanceDue : 1000);
+    }
+  };
+
+  if (!isOpen) return null;
+  if (!activeMember) {
+    return (
+      <Modal isOpen={isOpen} onClose={onClose} title="Collect Payment" maxWidth="md">
+        <div className="p-6 text-center text-slate-500">
+          No members registered yet. Please add a member first.
+        </div>
+      </Modal>
+    );
+  }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (amount <= 0) return;
+    if (amount <= 0 || !activeMember) return;
 
     const payment = store.recordPayment({
-      memberId: member.id,
+      memberId: activeMember.id,
       amount,
       paymentMethod: method,
       referenceNumber: reference.trim() || undefined,
@@ -53,88 +80,120 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Collect Payment" maxWidth="md">
+    <Modal isOpen={isOpen} onClose={onClose} title="Collect Payment & Issue Receipt" maxWidth="md">
       <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-100 flex justify-between items-center text-sm">
+        {/* Member Selector / Display */}
+        <div>
+          <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">
+            Select Member
+          </label>
+          <select
+            value={selectedMemberId}
+            onChange={(e) => handleMemberChange(e.target.value)}
+            className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-emerald-500 bg-white font-medium text-slate-800"
+          >
+            {members.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.firstName} {m.lastName} ({m.memberCode}) — Balance:{' '}
+                {formatCurrency(m.balanceDue, gym.settings.currencySymbol)}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-100 flex justify-between items-center text-xs">
           <div>
-            <span className="font-semibold text-slate-800">{member.firstName} {member.lastName}</span>
-            <span className="text-xs text-slate-500 block">{member.memberCode} • {member.currentPlanName || 'Standard Plan'}</span>
+            <span className="font-bold text-slate-800">
+              {activeMember.firstName} {activeMember.lastName}
+            </span>
+            <span className="text-[11px] text-slate-500 block">
+              {activeMember.memberCode} • {activeMember.currentPlanName || 'Standard Plan'}
+            </span>
           </div>
           <div className="text-right">
-            <span className="text-xs text-slate-400 block">Balance Due</span>
-            <span className="font-bold text-rose-600">
-              {formatCurrency(member.balanceDue, gym.settings.currencySymbol)}
+            <span className="text-[10px] uppercase font-bold text-slate-400 block">Balance Due</span>
+            <span className={`font-bold ${activeMember.balanceDue > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+              {formatCurrency(activeMember.balanceDue, gym.settings.currencySymbol)}
             </span>
           </div>
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">Amount to Collect ({gym.settings.currencySymbol})</label>
+          <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">
+            Amount to Collect ({gym.settings.currencySymbol}) *
+          </label>
           <input
             type="number"
             min="1"
             value={amount}
             onChange={(e) => setAmount(Number(e.target.value))}
-            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-lg font-bold text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-emerald-500"
+            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-base font-bold text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-emerald-500"
             required
           />
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">Payment Method</label>
+          <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">
+            Payment Mode
+          </label>
           <div className="grid grid-cols-4 gap-2">
             {(['upi', 'cash', 'card', 'bank_transfer'] as PaymentMethod[]).map((m) => (
               <button
                 key={m}
                 type="button"
                 onClick={() => setMethod(m)}
-                className={`py-2 px-1 text-xs font-semibold rounded-lg border uppercase transition ${
+                className={`py-2 px-1 text-[11px] font-semibold rounded-lg border uppercase transition ${
                   method === m
-                    ? 'bg-emerald-600 text-white border-emerald-600'
+                    ? 'bg-slate-950 text-lime-400 border-slate-950 shadow-xs'
                     : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
                 }`}
               >
-                {m}
+                {m.replace('_', ' ')}
               </button>
             ))}
           </div>
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">Reference / UTR Number (Optional)</label>
+          <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">
+            Reference / UTR / Transaction ID (Optional)
+          </label>
           <input
             type="text"
             value={reference}
             onChange={(e) => setReference(e.target.value)}
-            placeholder="e.g. UPI-9876543210 or POS transaction ID"
-            className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-emerald-500"
+            placeholder="e.g. UPI-9876543210 or POS slip #"
+            className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-emerald-500"
           />
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">Notes</label>
+          <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">
+            Notes / Receipt Narration
+          </label>
           <input
             type="text"
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            placeholder="e.g. Renewal fee, partial advance, etc."
-            className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-emerald-500"
+            placeholder="e.g. Monthly renewal, cash at desk, etc."
+            className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-emerald-500"
           />
         </div>
 
-        <div className="pt-3 flex gap-3">
+        <div className="pt-2 flex gap-3">
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-sm font-semibold transition"
+            className="flex-1 py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition"
           >
             Cancel
           </button>
           <button
             type="submit"
-            className="flex-1 py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold transition shadow-xs"
+            className="flex-1 py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold transition shadow-xs flex items-center justify-center gap-1.5"
           >
-            Confirm & Issue Receipt
+            <CreditCard className="w-3.5 h-3.5" />
+            <span>Confirm & Generate Receipt</span>
           </button>
         </div>
       </form>

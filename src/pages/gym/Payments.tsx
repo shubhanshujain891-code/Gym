@@ -42,13 +42,24 @@ export const Payments: React.FC<PaymentsProps> = ({ onOpenCollectModal }) => {
             Audit-ready receipts and payment records for <span className="font-semibold">{gym.name}</span>
           </p>
         </div>
-        <div className="bg-slate-950 text-white border border-slate-800 px-4 py-2 rounded-xl flex items-center gap-3 shadow-xs">
-          <div>
-            <span className="text-[10px] uppercase font-bold text-lime-400 block">Total Revenue</span>
-            <span className="text-lg font-black text-white">
-              {formatCurrency(totalCollected, gym.settings.currencySymbol)}
-            </span>
+        <div className="flex items-center gap-3">
+          <div className="bg-slate-950 text-white border border-slate-800 px-4 py-2 rounded-xl flex items-center gap-3 shadow-xs">
+            <div>
+              <span className="text-[10px] uppercase font-bold text-lime-400 block">Total Revenue</span>
+              <span className="text-lg font-black text-white">
+                {formatCurrency(totalCollected, gym.settings.currencySymbol)}
+              </span>
+            </div>
           </div>
+          {onOpenCollectModal && (
+            <button
+              onClick={onOpenCollectModal}
+              className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition shadow-xs"
+            >
+              <CreditCard className="w-4 h-4" />
+              <span>Collect Payment</span>
+            </button>
+          )}
         </div>
       </div>
 
